@@ -46,7 +46,7 @@ interface State {
   audit: AuditEntry[];
 }
 
-const KEY = "exam-store-v3";
+const KEY = "exam-store-v4";
 
 const FIRST = [
   "Aarav","Saurav","Gaurav","Sanskriti","Aashi","Vivaan","Aditya","Vihaan","Arjun","Sai",
