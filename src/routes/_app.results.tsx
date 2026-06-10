@@ -346,6 +346,59 @@ function ResultsPage() {
           </div>
         </CardContent>
       </Card>
+
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-2">
+          <div>
+            <CardTitle className="text-base">Full Merit List — {EXAM_LABELS[exam]}</CardTitle>
+            <p className="text-xs text-muted-foreground mt-1">B.Tech 2nd Semester · {sorted.length} students · Max {cfg.maxMarks}/subject</p>
+          </div>
+          <Badge variant="outline">Pass {sorted.filter(r=>r.pass).length} · Fail {sorted.filter(r=>!r.pass).length}</Badge>
+        </CardHeader>
+        <CardContent className="p-0">
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs border-collapse">
+              <thead className="bg-primary text-primary-foreground sticky top-0">
+                <tr>
+                  <th className="px-2 py-2 font-semibold border border-primary/30">Sr. No.</th>
+                  <th className="px-2 py-2 font-semibold border border-primary/30">ROLL NO</th>
+                  <th className="px-2 py-2 font-semibold border border-primary/30 text-left">Name</th>
+                  {SUBJECTS.map((s) => (
+                    <th key={s} className="px-2 py-2 font-semibold border border-primary/30">{s}</th>
+                  ))}
+                  <th className="px-2 py-2 font-semibold border border-primary/30">Total</th>
+                  <th className="px-2 py-2 font-semibold border border-primary/30">%</th>
+                  <th className="px-2 py-2 font-semibold border border-primary/30">Result</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sorted.map((r) => (
+                  <tr key={r.student.id} className="hover:bg-muted/40">
+                    <td className="px-2 py-1.5 border text-center font-mono">{r.student.roll}</td>
+                    <td className="px-2 py-1.5 border text-center font-mono text-[10px]">{r.student.enrollment}</td>
+                    <td className="px-2 py-1.5 border font-medium">{r.student.name}</td>
+                    {SUBJECTS.map((sub) => {
+                      const v = r.marks[sub];
+                      const subMin = (cfg.passPct / 100) * cfg.maxMarks;
+                      const fail = typeof v === "number" && v < subMin;
+                      return (
+                        <td key={sub} className={`px-2 py-1.5 border text-center tabular-nums ${fail ? "text-destructive font-semibold" : ""}`}>
+                          {v ?? "A"}
+                        </td>
+                      );
+                    })}
+                    <td className="px-2 py-1.5 border text-center font-bold tabular-nums">{r.total}</td>
+                    <td className="px-2 py-1.5 border text-center tabular-nums">{r.pct.toFixed(0)}</td>
+                    <td className={`px-2 py-1.5 border text-center font-semibold ${r.pass ? "text-success" : "text-destructive"}`}>
+                      {r.pass ? "Pass" : "Fail"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
