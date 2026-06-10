@@ -42,11 +42,11 @@ function ResultsPage() {
     return SUBJECTS.map((sub) => {
       let best: StudentResult | null = null;
       let bestMark = -1;
-      results.forEach((r) => {
+      for (const r of results) {
         const v = r.marks[sub];
         if (typeof v === "number" && v > bestMark) { bestMark = v; best = r; }
-      });
-      return { subject: sub, topper: best, mark: bestMark };
+      }
+      return { subject: sub, topper: best as StudentResult | null, mark: bestMark };
     });
   }, [results]);
 
