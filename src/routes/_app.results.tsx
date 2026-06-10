@@ -586,3 +586,47 @@ function Stat({ label, value }: { label: string; value: string }) {
     </div>
   );
 }
+
+function EditableMark({ exam, studentId, subject, value, max, passPct, user }: {
+  exam: ExamType; studentId: string; subject: Subject; value: number | null; max: number; passPct: number; user: string;
+}) {
+  const [draft, setDraft] = useState<string>(value === null ? "" : String(value));
+  const [editing, setEditing] = useState(false);
+  useMemo(() => { setDraft(value === null ? "" : String(value)); }, [value]);
+
+  const subMin = (passPct / 100) * max;
+  const fail = typeof value === "number" && value < subMin;
+
+  const commit = () => {
+    setEditing(false);
+    const trimmed = draft.trim();
+    if (trimmed === "") {
+      examStore.setMark(exam, studentId, subject, null, user);
+      return;
+    }
+    const n = Number(trimmed);
+    if (Number.isNaN(n) || n < 0 || n > max) {
+      toast.error(`Marks 0–${max} ke beech hone chahiye`);
+      setDraft(value === null ? "" : String(value));
+      return;
+    }
+    examStore.setMark(exam, studentId, subject, n, user);
+    toast.success(`${subject} updated`);
+  };
+
+  return (
+    <td className={`p-0.5 border text-center tabular-nums ${fail ? "text-destructive font-semibold" : ""}`}>
+      <input
+        type="number"
+        min={0}
+        max={max}
+        value={draft}
+        onFocus={() => setEditing(true)}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
+        className={`w-14 text-center px-1 py-1 rounded bg-transparent text-xs font-medium focus:outline-none focus:ring-2 focus:ring-primary/40 focus:bg-background ${editing ? "border border-primary" : "border border-transparent hover:border-border"}`}
+      />
+    </td>
+  );
+}
