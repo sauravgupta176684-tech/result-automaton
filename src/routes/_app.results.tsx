@@ -443,16 +443,18 @@ function ResultsPage() {
                     <td className="px-2 py-1.5 border text-center font-mono">{r.student.roll}</td>
                     <td className="px-2 py-1.5 border text-center font-mono text-[10px]">{r.student.enrollment}</td>
                     <td className="px-2 py-1.5 border font-medium">{r.student.name}</td>
-                    {SUBJECTS.map((sub) => {
-                      const v = r.marks[sub];
-                      const subMin = (cfg.passPct / 100) * cfg.maxMarks;
-                      const fail = typeof v === "number" && v < subMin;
-                      return (
-                        <td key={sub} className={`px-2 py-1.5 border text-center tabular-nums ${fail ? "text-destructive font-semibold" : ""}`}>
-                          {v ?? "A"}
-                        </td>
-                      );
-                    })}
+                    {SUBJECTS.map((sub) => (
+                      <EditableMark
+                        key={sub}
+                        exam={exam}
+                        studentId={r.student.id}
+                        subject={sub}
+                        value={r.marks[sub] ?? null}
+                        max={cfg.maxMarks}
+                        passPct={cfg.passPct}
+                        user={session?.email ?? "anon"}
+                      />
+                    ))}
                     <td className="px-2 py-1.5 border text-center font-bold tabular-nums">{r.total}</td>
                     <td className="px-2 py-1.5 border text-center tabular-nums">{r.pct.toFixed(0)}</td>
                     <td className={`px-2 py-1.5 border text-center font-semibold ${r.pass ? "text-success" : "text-destructive"}`}>
