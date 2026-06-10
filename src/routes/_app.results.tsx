@@ -1,9 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { Trophy, Download, FileText, Medal } from "lucide-react";
+import { Trophy, Download, FileText, Medal, Presentation } from "lucide-react";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -11,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
+import { toast } from "sonner";
 import { useExamStore, computeResults, EXAM_LABELS, SUBJECTS, type ExamType, type StudentResult } from "@/lib/exam-store";
 
 export const Route = createFileRoute("/_app/results")({
@@ -51,21 +53,158 @@ function ResultsPage() {
   }, [results]);
 
   const exportMerit = () => {
-    const rows = sorted.map((r) => ({
-      Rank: r.rank,
-      Roll: r.student.roll,
-      Name: r.student.name,
-      Section: r.student.section,
-      Total: r.total,
-      Max: r.maxTotal,
-      Percentage: +r.pct.toFixed(2),
-      Grade: r.grade,
-      Status: r.pass ? "PASS" : "FAIL",
-    }));
+    const rows = sorted.map((r) => {
+      const row: Record<string, string | number> = {
+        "Sr. No.": r.student.roll,
+        "ROLL NO": r.student.enrollment,
+        "Name": r.student.name,
+      };
+      SUBJECTS.forEach((s) => { row[s] = r.marks[s] ?? "A"; });
+      row["Total"] = r.total;
+      row["%"] = +((r.total / r.maxTotal) * 100).toFixed(2);
+      row["Result"] = r.pass ? "Pass" : "Fail";
+      return row;
+    });
     const ws = XLSX.utils.json_to_sheet(rows);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Merit List");
     XLSX.writeFile(wb, `merit_${exam}.xlsx`);
+    toast.success("Excel exported");
+  };
+
+  const exportPPT = async () => {
+    toast.info("Generating PPT…");
+    const { default: PptxGenJS } = await import("pptxgenjs");
+    const pptx = new PptxGenJS();
+    pptx.layout = "LAYOUT_WIDE";
+    pptx.title = `${EXAM_LABELS[exam]} Result Report`;
+
+    const NAVY = "1E2761";
+    const ACCENT = "E94560";
+    const LIGHT = "F4F6FB";
+    const passCount = sorted.filter((r) => r.pass).length;
+    const failCount = sorted.length - passCount;
+    const avgPct = sorted.length ? sorted.reduce((a, r) => a + r.pct, 0) / sorted.length : 0;
+
+    // Slide 1 - Cover
+    const s1 = pptx.addSlide();
+    s1.background = { color: NAVY };
+    s1.addShape("rect", { x: 0, y: 4.5, w: 13.33, h: 0.08, fill: { color: ACCENT } });
+    s1.addText("Smart Exam Result Management System", {
+      x: 0.6, y: 1.8, w: 12, h: 0.7, fontSize: 32, bold: true, color: "FFFFFF", fontFace: "Calibri",
+    });
+    s1.addText(`${EXAM_LABELS[exam]} — Result Report`, {
+      x: 0.6, y: 2.6, w: 12, h: 0.6, fontSize: 24, color: "CADCFC", fontFace: "Calibri",
+    });
+    s1.addText(`B.Tech 2nd Sem · ${sorted.length} Students · ${SUBJECTS.length} Subjects`, {
+      x: 0.6, y: 3.3, w: 12, h: 0.4, fontSize: 16, color: "FFFFFF", italic: true,
+    });
+    s1.addText(`Generated ${new Date().toLocaleDateString()}`, {
+      x: 0.6, y: 4.8, w: 12, h: 0.3, fontSize: 12, color: "CADCFC",
+    });
+
+    // Slide 2 - Summary stats
+    const s2 = pptx.addSlide();
+    s2.background = { color: "FFFFFF" };
+    s2.addText("Class Summary", { x: 0.5, y: 0.3, w: 12, h: 0.6, fontSize: 28, bold: true, color: NAVY });
+    const stats = [
+      { label: "Total Students", val: String(sorted.length), c: NAVY },
+      { label: "Pass", val: String(passCount), c: "2C5F2D" },
+      { label: "Fail", val: String(failCount), c: ACCENT },
+      { label: "Avg %", val: avgPct.toFixed(1) + "%", c: "065A82" },
+    ];
+    stats.forEach((st, i) => {
+      const x = 0.5 + i * 3.15;
+      s2.addShape("roundRect", { x, y: 1.3, w: 2.9, h: 2, fill: { color: LIGHT }, line: { color: st.c, width: 2 }, rectRadius: 0.15 });
+      s2.addText(st.val, { x, y: 1.5, w: 2.9, h: 1.1, fontSize: 56, bold: true, color: st.c, align: "center", fontFace: "Calibri" });
+      s2.addText(st.label, { x, y: 2.7, w: 2.9, h: 0.5, fontSize: 14, color: "555555", align: "center", bold: true });
+    });
+    s2.addText("Pass / Fail Distribution", { x: 0.5, y: 3.6, w: 12, h: 0.4, fontSize: 18, bold: true, color: NAVY });
+    s2.addChart(pptx.ChartType.bar, [
+      { name: "Students", labels: ["Pass", "Fail"], values: [passCount, failCount] },
+    ], { x: 0.5, y: 4.1, w: 6, h: 2.8, chartColors: ["2C5F2D", "E94560"], showLegend: false });
+
+    // Subject averages chart
+    const subjectAvg = SUBJECTS.map((sub) => {
+      const vals = sorted.map((r) => r.marks[sub]).filter((v): v is number => typeof v === "number");
+      return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : 0;
+    });
+    s2.addChart(pptx.ChartType.bar, [
+      { name: "Average", labels: [...SUBJECTS], values: subjectAvg.map((v) => +v.toFixed(1)) },
+    ], { x: 6.8, y: 4.1, w: 6, h: 2.8, chartColors: ["1E2761"], showLegend: false, barDir: "col" });
+
+    // Slide 3 - Top 10
+    const s3 = pptx.addSlide();
+    s3.background = { color: "FFFFFF" };
+    s3.addText("Top 10 Merit", { x: 0.5, y: 0.3, w: 12, h: 0.6, fontSize: 28, bold: true, color: NAVY });
+    const top10Rows: import("pptxgenjs").default.TableRow[] = [
+      [
+        { text: "Rank", options: { bold: true, color: "FFFFFF", fill: { color: NAVY } } },
+        { text: "Roll", options: { bold: true, color: "FFFFFF", fill: { color: NAVY } } },
+        { text: "Name", options: { bold: true, color: "FFFFFF", fill: { color: NAVY } } },
+        { text: "Section", options: { bold: true, color: "FFFFFF", fill: { color: NAVY } } },
+        { text: "Total", options: { bold: true, color: "FFFFFF", fill: { color: NAVY } } },
+        { text: "%", options: { bold: true, color: "FFFFFF", fill: { color: NAVY } } },
+        { text: "Grade", options: { bold: true, color: "FFFFFF", fill: { color: NAVY } } },
+      ],
+      ...top10.map((r) => [
+        { text: `#${r.rank}`, options: { bold: true, color: r.rank === 1 ? ACCENT : NAVY } },
+        { text: r.student.roll },
+        { text: r.student.name, options: { bold: true } },
+        { text: r.student.section },
+        { text: `${r.total}/${r.maxTotal}` },
+        { text: `${r.pct.toFixed(1)}%` },
+        { text: r.grade },
+      ]),
+    ];
+    s3.addTable(top10Rows, { x: 0.5, y: 1.1, w: 12.3, fontSize: 14, fontFace: "Calibri", border: { type: "solid", color: "DDDDDD", pt: 0.5 }, rowH: 0.45 });
+
+    // Slide 4 - Subject Toppers
+    const s4 = pptx.addSlide();
+    s4.background = { color: "FFFFFF" };
+    s4.addText("Subject Toppers", { x: 0.5, y: 0.3, w: 12, h: 0.6, fontSize: 28, bold: true, color: NAVY });
+    subjectToppers.forEach((st, i) => {
+      const y = 1.2 + i * 1.05;
+      s4.addShape("roundRect", { x: 0.5, y, w: 12.3, h: 0.9, fill: { color: LIGHT }, line: { color: "DDDDDD", width: 0.5 }, rectRadius: 0.1 });
+      s4.addShape("roundRect", { x: 0.7, y: y + 0.18, w: 1.2, h: 0.55, fill: { color: NAVY }, rectRadius: 0.08 });
+      s4.addText(st.subject, { x: 0.7, y: y + 0.18, w: 1.2, h: 0.55, fontSize: 16, bold: true, color: "FFFFFF", align: "center" });
+      if (st.topper) {
+        s4.addText(st.topper.student.name, { x: 2.1, y: y + 0.1, w: 7, h: 0.4, fontSize: 18, bold: true, color: NAVY });
+        s4.addText(`${st.topper.student.roll} · Section ${st.topper.student.section}`, { x: 2.1, y: y + 0.5, w: 7, h: 0.35, fontSize: 12, color: "666666" });
+        s4.addText(`${st.mark}/${cfg.maxMarks}`, { x: 9.5, y: y + 0.18, w: 3, h: 0.55, fontSize: 24, bold: true, color: ACCENT, align: "right" });
+      }
+    });
+
+    // Slide 5+ - Full merit list (chunked, PDF-style)
+    const CHUNK = 18;
+    for (let i = 0; i < sorted.length; i += CHUNK) {
+      const chunk = sorted.slice(i, i + CHUNK);
+      const s = pptx.addSlide();
+      s.background = { color: "FFFFFF" };
+      s.addText(`Full Result · ${EXAM_LABELS[exam]} (${i + 1}–${Math.min(i + CHUNK, sorted.length)})`, {
+        x: 0.5, y: 0.25, w: 12, h: 0.5, fontSize: 20, bold: true, color: NAVY,
+      });
+      const header = [
+        "Sr. No.", "ROLL NO", "Name", ...SUBJECTS, "Total", "%", "Result",
+      ].map((t) => ({ text: t, options: { bold: true, color: "FFFFFF", fill: { color: NAVY }, align: "center" as const } }));
+      const body = chunk.map((r) => [
+        { text: r.student.roll, options: { align: "center" as const } },
+        { text: r.student.enrollment, options: { align: "center" as const, fontSize: 9 } },
+        { text: r.student.name },
+        ...SUBJECTS.map((sub) => ({ text: String(r.marks[sub] ?? "A"), options: { align: "center" as const } })),
+        { text: String(r.total), options: { bold: true, align: "center" as const } },
+        { text: r.pct.toFixed(0), options: { align: "center" as const } },
+        { text: r.pass ? "Pass" : "Fail", options: { color: r.pass ? "2C5F2D" : "E94560", bold: true, align: "center" as const } },
+      ]);
+      s.addTable([header, ...body], {
+        x: 0.3, y: 0.9, w: 12.7, fontSize: 10, fontFace: "Calibri",
+        border: { type: "solid", color: "BBBBBB", pt: 0.5 }, rowH: 0.32,
+        colW: [0.8, 1.5, 2.6, 0.9, 0.9, 0.9, 0.9, 0.9, 0.8, 0.7, 0.9],
+      });
+    }
+
+    await pptx.writeFile({ fileName: `result_${exam}_${new Date().toISOString().slice(0,10)}.pptx` });
+    toast.success("PPT downloaded");
   };
 
   return (
@@ -74,10 +213,10 @@ function ResultsPage() {
         <div>
           <h1 className="font-display text-3xl font-bold">Results & Toppers</h1>
           <p className="text-muted-foreground text-sm mt-1">
-            Auto-generated merit lists, subject toppers and printable result cards
+            Auto-generated merit lists, subject toppers, printable result cards & PPT reports
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Tabs value={exam} onValueChange={(v) => setExam(v as ExamType)}>
             <TabsList>
               {EXAMS.map((e) => (
@@ -86,7 +225,10 @@ function ResultsPage() {
             </TabsList>
           </Tabs>
           <Button variant="outline" size="sm" onClick={exportMerit}>
-            <Download className="size-4 mr-1.5" /> Export Merit
+            <Download className="size-4 mr-1.5" /> Excel
+          </Button>
+          <Button size="sm" onClick={exportPPT} className="bg-gradient-to-r from-primary to-primary/80">
+            <Presentation className="size-4 mr-1.5" /> Download PPT
           </Button>
         </div>
       </header>
@@ -197,6 +339,59 @@ function ResultsPage() {
                     <td className="px-4 py-2.5 text-center"><Badge variant="secondary">{r.grade}</Badge></td>
                     <td className="px-4 py-2.5 text-center">
                       <ResultCardDialog result={r} exam={exam} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-2">
+          <div>
+            <CardTitle className="text-base">Full Merit List — {EXAM_LABELS[exam]}</CardTitle>
+            <p className="text-xs text-muted-foreground mt-1">B.Tech 2nd Semester · {sorted.length} students · Max {cfg.maxMarks}/subject</p>
+          </div>
+          <Badge variant="outline">Pass {sorted.filter(r=>r.pass).length} · Fail {sorted.filter(r=>!r.pass).length}</Badge>
+        </CardHeader>
+        <CardContent className="p-0">
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs border-collapse">
+              <thead className="bg-primary text-primary-foreground sticky top-0">
+                <tr>
+                  <th className="px-2 py-2 font-semibold border border-primary/30">Sr. No.</th>
+                  <th className="px-2 py-2 font-semibold border border-primary/30">ROLL NO</th>
+                  <th className="px-2 py-2 font-semibold border border-primary/30 text-left">Name</th>
+                  {SUBJECTS.map((s) => (
+                    <th key={s} className="px-2 py-2 font-semibold border border-primary/30">{s}</th>
+                  ))}
+                  <th className="px-2 py-2 font-semibold border border-primary/30">Total</th>
+                  <th className="px-2 py-2 font-semibold border border-primary/30">%</th>
+                  <th className="px-2 py-2 font-semibold border border-primary/30">Result</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sorted.map((r) => (
+                  <tr key={r.student.id} className="hover:bg-muted/40">
+                    <td className="px-2 py-1.5 border text-center font-mono">{r.student.roll}</td>
+                    <td className="px-2 py-1.5 border text-center font-mono text-[10px]">{r.student.enrollment}</td>
+                    <td className="px-2 py-1.5 border font-medium">{r.student.name}</td>
+                    {SUBJECTS.map((sub) => {
+                      const v = r.marks[sub];
+                      const subMin = (cfg.passPct / 100) * cfg.maxMarks;
+                      const fail = typeof v === "number" && v < subMin;
+                      return (
+                        <td key={sub} className={`px-2 py-1.5 border text-center tabular-nums ${fail ? "text-destructive font-semibold" : ""}`}>
+                          {v ?? "A"}
+                        </td>
+                      );
+                    })}
+                    <td className="px-2 py-1.5 border text-center font-bold tabular-nums">{r.total}</td>
+                    <td className="px-2 py-1.5 border text-center tabular-nums">{r.pct.toFixed(0)}</td>
+                    <td className={`px-2 py-1.5 border text-center font-semibold ${r.pass ? "text-success" : "text-destructive"}`}>
+                      {r.pass ? "Pass" : "Fail"}
                     </td>
                   </tr>
                 ))}

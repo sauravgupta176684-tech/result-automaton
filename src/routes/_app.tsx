@@ -1,5 +1,5 @@
 import { createFileRoute, Link, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { LayoutDashboard, Pencil, FileBarChart, GraduationCap, LogOut, ClipboardList } from "lucide-react";
 import { auth, useSession } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
@@ -20,11 +20,14 @@ function AppLayout() {
   const session = useSession();
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const [mounted, setMounted] = useState(false);
 
+  useEffect(() => { setMounted(true); }, []);
   useEffect(() => {
-    if (!session) navigate({ to: "/auth" });
-  }, [session, navigate]);
+    if (mounted && !session) navigate({ to: "/auth" });
+  }, [mounted, session, navigate]);
 
+  if (!mounted) return <div className="min-h-screen bg-muted/40" />;
   if (!session) return null;
 
   return (
