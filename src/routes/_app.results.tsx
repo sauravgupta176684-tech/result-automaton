@@ -207,6 +207,66 @@ function ResultsPage() {
     toast.success("PPT downloaded");
   };
 
+  const exportAllPdf = () => {
+    toast.info("Building combined PDF…");
+    const doc = new jsPDF();
+    sorted.forEach((result, idx) => {
+      if (idx > 0) doc.addPage();
+      doc.setFontSize(16); doc.setFont("helvetica", "bold");
+      doc.text("Smart Exam Result Management System", 105, 16, { align: "center" });
+      doc.setFontSize(10); doc.setFont("helvetica", "normal");
+      doc.text(EXAM_LABELS[exam] + " — Result Card", 105, 22, { align: "center" });
+      doc.setDrawColor(200); doc.line(15, 26, 195, 26);
+
+      doc.setFontSize(9);
+      const info = [
+        ["Name", result.student.name, "Roll No", result.student.roll],
+        ["Enrollment", result.student.enrollment, "Course", result.student.course],
+        ["Semester", String(result.student.semester), "Section", result.student.section],
+      ];
+      let y = 34;
+      info.forEach((row) => {
+        doc.setFont("helvetica", "bold"); doc.text(row[0] + ":", 18, y);
+        doc.setFont("helvetica", "normal"); doc.text(row[1], 50, y);
+        doc.setFont("helvetica", "bold"); doc.text(row[2] + ":", 115, y);
+        doc.setFont("helvetica", "normal"); doc.text(row[3], 145, y);
+        y += 6;
+      });
+
+      const subMin = Math.floor((cfg.passPct / 100) * cfg.maxMarks);
+      autoTable(doc, {
+        startY: y + 3,
+        head: [["Subject", "Max", "Marks", "Status"]],
+        body: SUBJECTS.map((s) => {
+          const v = result.marks[s] ?? 0;
+          return [s, cfg.maxMarks, v, v >= subMin ? "Pass" : "Fail"];
+        }),
+        theme: "grid",
+        headStyles: { fillColor: [30, 39, 97], textColor: 255 },
+        styles: { fontSize: 10 },
+      });
+
+      const finalY = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 6;
+      autoTable(doc, {
+        startY: finalY,
+        body: [
+          ["Total", `${result.total} / ${result.maxTotal}`, "Percentage", `${result.pct.toFixed(2)}%`],
+          ["Grade", result.grade, "Status", result.pass ? "PASS" : "FAIL"],
+          ["Class Rank", `#${result.rank}`, "Section Rank", `#${result.sectionRank}`],
+        ],
+        theme: "grid",
+        styles: { fontSize: 10, fontStyle: "bold" },
+        columnStyles: { 0: { fillColor: [240, 244, 255] }, 2: { fillColor: [240, 244, 255] } },
+      });
+
+      doc.setFontSize(8); doc.setTextColor(120);
+      doc.text(`Page ${idx + 1} of ${sorted.length}`, 105, 290, { align: "center" });
+      doc.setTextColor(0);
+    });
+    doc.save(`all_result_cards_${exam}.pdf`);
+    toast.success(`PDF with ${sorted.length} result cards downloaded`);
+  };
+
   return (
     <div className="space-y-6">
       <header className="flex flex-wrap items-end justify-between gap-3">
