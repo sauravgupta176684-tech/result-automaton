@@ -98,7 +98,7 @@ function seed(): State {
   const examTypes: ExamType[] = ["midsem", "put", "internal", "endsem"];
   const defaults: Record<ExamType, ExamConfig> = {
     midsem: { maxMarks: 20, passPct: 35 },
-    put: { maxMarks: 20, passPct: 35 },
+    put: { maxMarks: 70, passPct: 33 },
     internal: { maxMarks: 20, passPct: 35 },
     endsem: { maxMarks: 70, passPct: 35 },
   };
