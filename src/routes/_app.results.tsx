@@ -13,7 +13,8 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { useExamStore, computeResults, EXAM_LABELS, SUBJECTS, type ExamType, type StudentResult } from "@/lib/exam-store";
+import { useExamStore, examStore, computeResults, EXAM_LABELS, SUBJECTS, type ExamType, type StudentResult, type Subject } from "@/lib/exam-store";
+import { useSession } from "@/lib/auth";
 
 export const Route = createFileRoute("/_app/results")({
   head: () => ({ meta: [{ title: "Results & Toppers — Smart Exam System" }] }),
@@ -24,6 +25,7 @@ const EXAMS: ExamType[] = ["midsem", "put", "internal", "endsem"];
 
 function ResultsPage() {
   const state = useExamStore((s) => s);
+  const session = useSession();
   const [exam, setExam] = useState<ExamType>("midsem");
   const results = useMemo(() => computeResults(state, exam), [state, exam]);
   const cfg = state.config[exam];
@@ -441,16 +443,18 @@ function ResultsPage() {
                     <td className="px-2 py-1.5 border text-center font-mono">{r.student.roll}</td>
                     <td className="px-2 py-1.5 border text-center font-mono text-[10px]">{r.student.enrollment}</td>
                     <td className="px-2 py-1.5 border font-medium">{r.student.name}</td>
-                    {SUBJECTS.map((sub) => {
-                      const v = r.marks[sub];
-                      const subMin = (cfg.passPct / 100) * cfg.maxMarks;
-                      const fail = typeof v === "number" && v < subMin;
-                      return (
-                        <td key={sub} className={`px-2 py-1.5 border text-center tabular-nums ${fail ? "text-destructive font-semibold" : ""}`}>
-                          {v ?? "A"}
-                        </td>
-                      );
-                    })}
+                    {SUBJECTS.map((sub) => (
+                      <EditableMark
+                        key={sub}
+                        exam={exam}
+                        studentId={r.student.id}
+                        subject={sub}
+                        value={r.marks[sub] ?? null}
+                        max={cfg.maxMarks}
+                        passPct={cfg.passPct}
+                        user={session?.email ?? "anon"}
+                      />
+                    ))}
                     <td className="px-2 py-1.5 border text-center font-bold tabular-nums">{r.total}</td>
                     <td className="px-2 py-1.5 border text-center tabular-nums">{r.pct.toFixed(0)}</td>
                     <td className={`px-2 py-1.5 border text-center font-semibold ${r.pass ? "text-success" : "text-destructive"}`}>
@@ -580,5 +584,49 @@ function Stat({ label, value }: { label: string; value: string }) {
       <div className="text-[10px] uppercase tracking-wide text-muted-foreground font-semibold">{label}</div>
       <div className="font-bold text-lg">{value}</div>
     </div>
+  );
+}
+
+function EditableMark({ exam, studentId, subject, value, max, passPct, user }: {
+  exam: ExamType; studentId: string; subject: Subject; value: number | null; max: number; passPct: number; user: string;
+}) {
+  const [draft, setDraft] = useState<string>(value === null ? "" : String(value));
+  const [editing, setEditing] = useState(false);
+  useMemo(() => { setDraft(value === null ? "" : String(value)); }, [value]);
+
+  const subMin = (passPct / 100) * max;
+  const fail = typeof value === "number" && value < subMin;
+
+  const commit = () => {
+    setEditing(false);
+    const trimmed = draft.trim();
+    if (trimmed === "") {
+      examStore.setMark(exam, studentId, subject, null, user);
+      return;
+    }
+    const n = Number(trimmed);
+    if (Number.isNaN(n) || n < 0 || n > max) {
+      toast.error(`Marks 0–${max} ke beech hone chahiye`);
+      setDraft(value === null ? "" : String(value));
+      return;
+    }
+    examStore.setMark(exam, studentId, subject, n, user);
+    toast.success(`${subject} updated`);
+  };
+
+  return (
+    <td className={`p-0.5 border text-center tabular-nums ${fail ? "text-destructive font-semibold" : ""}`}>
+      <input
+        type="number"
+        min={0}
+        max={max}
+        value={draft}
+        onFocus={() => setEditing(true)}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
+        className={`w-14 text-center px-1 py-1 rounded bg-transparent text-xs font-medium focus:outline-none focus:ring-2 focus:ring-primary/40 focus:bg-background ${editing ? "border border-primary" : "border border-transparent hover:border-border"}`}
+      />
+    </td>
   );
 }
