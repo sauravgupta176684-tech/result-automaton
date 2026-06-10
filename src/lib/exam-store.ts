@@ -98,7 +98,7 @@ function seed(): State {
   const examTypes: ExamType[] = ["midsem", "put", "internal", "endsem"];
   const defaults: Record<ExamType, ExamConfig> = {
     midsem: { maxMarks: 20, passPct: 35 },
-    put: { maxMarks: 20, passPct: 35 },
+    put: { maxMarks: 70, passPct: 33 },
     internal: { maxMarks: 20, passPct: 35 },
     endsem: { maxMarks: 70, passPct: 35 },
   };
@@ -251,7 +251,7 @@ export function computeResults(s: State, exam: ExamType): StudentResult[] {
     }
     const pct = any ? (total / maxTotal) * 100 : 0;
     const { grade, pass } = gradeFor(pct, cfg.passPct);
-    const subjectMin = (cfg.passPct / 100) * cfg.maxMarks;
+    const subjectMin = Math.floor((cfg.passPct / 100) * cfg.maxMarks);
     const allSubPass = SUBJECTS.every((sub) => (marks[sub] ?? 0) >= subjectMin);
     return {
       student: stu,
