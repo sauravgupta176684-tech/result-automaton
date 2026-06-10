@@ -74,6 +74,7 @@ function ResultsPage() {
 
   const exportPPT = async () => {
     toast.info("Generating PPT…");
+    const { default: PptxGenJS } = await import("pptxgenjs");
     const pptx = new PptxGenJS();
     pptx.layout = "LAYOUT_WIDE";
     pptx.title = `${EXAM_LABELS[exam]} Result Report`;
@@ -136,7 +137,7 @@ function ResultsPage() {
     const s3 = pptx.addSlide();
     s3.background = { color: "FFFFFF" };
     s3.addText("Top 10 Merit", { x: 0.5, y: 0.3, w: 12, h: 0.6, fontSize: 28, bold: true, color: NAVY });
-    const top10Rows: PptxGenJS.TableRow[] = [
+    const top10Rows: import("pptxgenjs").default.TableRow[] = [
       [
         { text: "Rank", options: { bold: true, color: "FFFFFF", fill: { color: NAVY } } },
         { text: "Roll", options: { bold: true, color: "FFFFFF", fill: { color: NAVY } } },
