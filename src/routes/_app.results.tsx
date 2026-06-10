@@ -25,6 +25,7 @@ const EXAMS: ExamType[] = ["midsem", "put", "internal", "endsem"];
 
 function ResultsPage() {
   const state = useExamStore((s) => s);
+  const session = useSession();
   const [exam, setExam] = useState<ExamType>("midsem");
   const results = useMemo(() => computeResults(state, exam), [state, exam]);
   const cfg = state.config[exam];
