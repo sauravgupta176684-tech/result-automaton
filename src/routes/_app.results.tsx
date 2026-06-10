@@ -287,6 +287,9 @@ function ResultsPage() {
           <Button variant="outline" size="sm" onClick={exportMerit}>
             <Download className="size-4 mr-1.5" /> Excel
           </Button>
+          <Button variant="outline" size="sm" onClick={exportAllPdf}>
+            <FileText className="size-4 mr-1.5" /> All PDFs
+          </Button>
           <Button size="sm" onClick={exportPPT} className="bg-gradient-to-r from-primary to-primary/80">
             <Presentation className="size-4 mr-1.5" /> Download PPT
           </Button>
