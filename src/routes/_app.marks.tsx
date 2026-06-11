@@ -1,5 +1,5 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useEffect, useMemo, useState } from "react";
 import { Save, Download, Upload, AlertCircle, Search, Settings2, RotateCcw } from "lucide-react";
 import * as XLSX from "xlsx";
 import { Card, CardContent } from "@/components/ui/card";
@@ -14,7 +14,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
-import { useSession } from "@/lib/auth";
+import { useSession, isTeacherEmail } from "@/lib/auth";
 import {
   useExamStore, examStore, computeResults, EXAM_LABELS, SUBJECTS, SECTIONS,
   type ExamType, type Subject,
@@ -29,6 +29,14 @@ const EXAMS: ExamType[] = ["midsem", "put", "internal", "endsem"];
 
 function MarksPage() {
   const session = useSession();
+  const navigate = useNavigate();
+  const isTeacher = isTeacherEmail(session?.email);
+  useEffect(() => {
+    if (session && !isTeacher) {
+      toast.error("Sirf teachers hi marks edit kar sakte hain");
+      navigate({ to: "/results" });
+    }
+  }, [session, isTeacher, navigate]);
   const state = useExamStore((s) => s);
   const [exam, setExam] = useState<ExamType>("midsem");
   const [section, setSection] = useState<string>("all");

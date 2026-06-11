@@ -1,8 +1,9 @@
 import { createFileRoute, Link, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { LayoutDashboard, Pencil, FileBarChart, GraduationCap, LogOut, ClipboardList } from "lucide-react";
-import { auth, useSession } from "@/lib/auth";
+import { auth, useSession, isTeacherEmail } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_app")({
@@ -10,16 +11,18 @@ export const Route = createFileRoute("/_app")({
 });
 
 const NAV = [
-  { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { to: "/marks", label: "Marks Entry", icon: Pencil },
-  { to: "/results", label: "Results & Toppers", icon: FileBarChart },
-  { to: "/audit", label: "Audit Log", icon: ClipboardList },
+  { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard, teacherOnly: false },
+  { to: "/marks", label: "Marks Entry", icon: Pencil, teacherOnly: true },
+  { to: "/results", label: "Results & Toppers", icon: FileBarChart, teacherOnly: false },
+  { to: "/audit", label: "Audit Log", icon: ClipboardList, teacherOnly: true },
 ] as const;
 
 function AppLayout() {
   const session = useSession();
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const isTeacher = isTeacherEmail(session?.email);
+  const visibleNav = NAV.filter((n) => !n.teacherOnly || isTeacher);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => { setMounted(true); }, []);
@@ -43,7 +46,7 @@ function AppLayout() {
           </div>
         </div>
         <nav className="flex-1 p-3 space-y-1">
-          {NAV.map((n) => {
+          {visibleNav.map((n) => {
             const active = pathname === n.to;
             return (
               <Link
@@ -64,7 +67,12 @@ function AppLayout() {
         </nav>
         <div className="p-3 border-t border-sidebar-border">
           <div className="px-3 py-2 mb-2">
-            <div className="text-xs text-muted-foreground">Signed in as</div>
+            <div className="text-xs text-muted-foreground flex items-center gap-1.5">
+              Signed in as
+              <Badge variant={isTeacher ? "default" : "secondary"} className="text-[9px] px-1.5 py-0">
+                {isTeacher ? "Teacher" : "Viewer"}
+              </Badge>
+            </div>
             <div className="text-sm font-medium truncate">{session.email}</div>
           </div>
           <Button
@@ -91,8 +99,11 @@ function AppLayout() {
 
       <main className="flex-1 min-w-0 md:pt-0 pt-14">
         {/* Mobile bottom nav */}
-        <div className="md:hidden fixed bottom-0 inset-x-0 z-30 bg-sidebar border-t border-sidebar-border grid grid-cols-4">
-          {NAV.map((n) => {
+        <div
+          className="md:hidden fixed bottom-0 inset-x-0 z-30 bg-sidebar border-t border-sidebar-border grid"
+          style={{ gridTemplateColumns: `repeat(${visibleNav.length}, minmax(0,1fr))` }}
+        >
+          {visibleNav.map((n) => {
             const active = pathname === n.to;
             return (
               <Link key={n.to} to={n.to} className={cn(
