@@ -102,6 +102,21 @@ function AuthPage() {
             <p className="text-xs text-muted-foreground text-center">
               Demo mode · No password required
             </p>
+            <div className="rounded-lg border border-dashed border-border bg-muted/40 p-3 space-y-1.5">
+              <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                Teacher emails (edit access)
+              </div>
+              <ul className="text-xs font-mono space-y-0.5">
+                {TEACHER_EMAILS.map((e) => (
+                  <li key={e} className="text-foreground/80">• {e}</li>
+                ))}
+              </ul>
+              <p className="text-[11px] text-muted-foreground pt-1">
+                In emails se login karne par marks edit kar sakte ho. Kisi bhi
+                doosre email se login karoge to <span className="font-semibold">viewer</span> (read-only)
+                ban jaoge.
+              </p>
+            </div>
           </form>
         </div>
       </div>
