@@ -453,6 +453,7 @@ function ResultsPage() {
                         max={cfg.maxMarks}
                         passPct={cfg.passPct}
                         user={session?.email ?? "anon"}
+                        canEdit={isTeacherEmail(session?.email)}
                       />
                     ))}
                     <td className="px-2 py-1.5 border text-center font-bold tabular-nums">{r.total}</td>
@@ -587,8 +588,8 @@ function Stat({ label, value }: { label: string; value: string }) {
   );
 }
 
-function EditableMark({ exam, studentId, subject, value, max, passPct, user }: {
-  exam: ExamType; studentId: string; subject: Subject; value: number | null; max: number; passPct: number; user: string;
+function EditableMark({ exam, studentId, subject, value, max, passPct, user, canEdit }: {
+  exam: ExamType; studentId: string; subject: Subject; value: number | null; max: number; passPct: number; user: string; canEdit: boolean;
 }) {
   const [draft, setDraft] = useState<string>(value === null ? "" : String(value));
   const [editing, setEditing] = useState(false);
@@ -614,6 +615,14 @@ function EditableMark({ exam, studentId, subject, value, max, passPct, user }: {
     toast.success(`${subject} updated`);
   };
 
+  if (!canEdit) {
+    return (
+      <td className={`px-2 py-1.5 border text-center tabular-nums ${fail ? "text-destructive font-semibold" : ""}`}>
+        {value === null ? "A" : value}
+      </td>
+    );
+  }
+
   return (
     <td className={`p-0.5 border text-center tabular-nums ${fail ? "text-destructive font-semibold" : ""}`}>
       <input
@@ -630,3 +639,4 @@ function EditableMark({ exam, studentId, subject, value, max, passPct, user }: {
     </td>
   );
 }
+
