@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { useExamStore, examStore, computeResults, EXAM_LABELS, SUBJECTS, type ExamType, type StudentResult, type Subject } from "@/lib/exam-store";
-import { useSession } from "@/lib/auth";
+import { useSession, isTeacherEmail } from "@/lib/auth";
 
 export const Route = createFileRoute("/_app/results")({
   head: () => ({ meta: [{ title: "Results & Toppers — Smart Exam System" }] }),

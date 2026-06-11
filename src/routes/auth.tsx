@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { GraduationCap, ArrowRight } from "lucide-react";
-import { auth, useSession } from "@/lib/auth";
+import { auth, useSession, TEACHER_EMAILS } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
