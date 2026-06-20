@@ -14,7 +14,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
-import { useSession, isTeacherEmail } from "@/lib/auth";
+import { useSession, useIsTeacher } from "@/lib/auth";
 import {
   useExamStore, examStore, computeResults, EXAM_LABELS, SUBJECTS, SECTIONS,
   type ExamType, type Subject,
@@ -30,10 +30,10 @@ const EXAMS: ExamType[] = ["midsem", "put", "internal", "endsem"];
 function MarksPage() {
   const session = useSession();
   const navigate = useNavigate();
-  const isTeacher = isTeacherEmail(session?.email);
+  const isTeacher = useIsTeacher();
   useEffect(() => {
     if (session && !isTeacher) {
-      toast.error("Sirf teachers hi marks edit kar sakte hain");
+      toast.error("Sirf teacher (PIN ke saath login) marks edit kar sakte hain");
       navigate({ to: "/results" });
     }
   }, [session, isTeacher, navigate]);

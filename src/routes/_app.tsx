@@ -1,7 +1,7 @@
 import { createFileRoute, Link, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { LayoutDashboard, Pencil, FileBarChart, GraduationCap, LogOut, ClipboardList } from "lucide-react";
-import { auth, useSession, isTeacherEmail } from "@/lib/auth";
+import { auth, useSession, useIsTeacher } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -21,7 +21,7 @@ function AppLayout() {
   const session = useSession();
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const isTeacher = isTeacherEmail(session?.email);
+  const isTeacher = useIsTeacher();
   const visibleNav = NAV.filter((n) => !n.teacherOnly || isTeacher);
   const [mounted, setMounted] = useState(false);
 
