@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { useExamStore, examStore, computeResults, EXAM_LABELS, SUBJECTS, type ExamType, type StudentResult, type Subject } from "@/lib/exam-store";
-import { useSession, isTeacherEmail } from "@/lib/auth";
+import { useSession, useIsTeacher } from "@/lib/auth";
 
 export const Route = createFileRoute("/_app/results")({
   head: () => ({ meta: [{ title: "Results & Toppers — Smart Exam System" }] }),
@@ -26,6 +26,7 @@ const EXAMS: ExamType[] = ["midsem", "put", "internal", "endsem"];
 function ResultsPage() {
   const state = useExamStore((s) => s);
   const session = useSession();
+  const isTeacher = useIsTeacher();
   const [exam, setExam] = useState<ExamType>("midsem");
   const results = useMemo(() => computeResults(state, exam), [state, exam]);
   const cfg = state.config[exam];
@@ -453,7 +454,7 @@ function ResultsPage() {
                         max={cfg.maxMarks}
                         passPct={cfg.passPct}
                         user={session?.email ?? "anon"}
-                        canEdit={isTeacherEmail(session?.email)}
+                        canEdit={isTeacher}
                       />
                     ))}
                     <td className="px-2 py-1.5 border text-center font-bold tabular-nums">{r.total}</td>
