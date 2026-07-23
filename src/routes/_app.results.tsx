@@ -404,6 +404,9 @@ function ResultsPage() {
           <Button variant="outline" size="sm" onClick={exportMerit}>
             <FileSpreadsheet className="size-4 mr-1.5" /> Export Excel
           </Button>
+          <Button variant="default" size="sm" onClick={downloadAllResultsExcel} className="bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-700 hover:to-emerald-600">
+            <FileSpreadsheet className="size-4 mr-1.5" /> Download Excel (.xlsx)
+          </Button>
           {isTeacher && (
             <label>
               <input type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={(e) => {
