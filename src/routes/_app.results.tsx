@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { Trophy, Download, FileText, Medal, Presentation } from "lucide-react";
+import { Trophy, Download, FileText, Medal, Presentation, Upload, FileSpreadsheet } from "lucide-react";
+
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
