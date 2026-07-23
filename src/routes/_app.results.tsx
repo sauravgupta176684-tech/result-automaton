@@ -62,19 +62,60 @@ function ResultsPage() {
         "Sr. No.": r.student.roll,
         "ROLL NO": r.student.enrollment,
         "Name": r.student.name,
+        "Section": r.student.section,
+        "Semester": r.student.semester,
+        "Course": r.student.course,
       };
-      SUBJECTS.forEach((s) => { row[s] = r.marks[s] ?? "A"; });
+      SUBJECTS.forEach((s) => { row[s] = r.marks[s] ?? ""; });
       row["Total"] = r.total;
-      row["%"] = +((r.total / r.maxTotal) * 100).toFixed(2);
+      row["Max"] = r.maxTotal;
+      row["%"] = +r.pct.toFixed(2);
+      row["Grade"] = r.grade;
       row["Result"] = r.pass ? "Pass" : "Fail";
+      row["Class Rank"] = r.rank;
+      row["Section Rank"] = r.sectionRank;
       return row;
     });
     const ws = XLSX.utils.json_to_sheet(rows);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Merit List");
     XLSX.writeFile(wb, `merit_${exam}.xlsx`);
-    toast.success("Excel exported");
+    toast.success("Excel exported — edit & re-import to sync");
   };
+
+  const importMerit = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = new Uint8Array(e.target?.result as ArrayBuffer);
+        const wb = XLSX.read(data, { type: "array" });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws);
+        let updated = 0;
+        rows.forEach((row) => {
+          const roll = String(row["Sr. No."] ?? row["Roll"] ?? row["Roll No"] ?? row["roll"] ?? "").trim();
+          const enr = String(row["ROLL NO"] ?? row["Enrollment"] ?? "").trim();
+          const student = state.students.find((s) => s.roll === roll || s.enrollment === enr);
+          if (!student) return;
+          SUBJECTS.forEach((sub) => {
+            const v = row[sub];
+            if (v !== undefined && v !== "" && v !== null) {
+              const n = Number(v);
+              if (!Number.isNaN(n) && n >= 0 && n <= cfg.maxMarks) {
+                examStore.setMark(exam, student.id, sub, n, session?.email ?? "excel-import");
+                updated++;
+              }
+            }
+          });
+        });
+        toast.success(`Synced ${updated} marks from Excel · results recalculated`);
+      } catch {
+        toast.error("Could not read Excel file");
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  };
+
 
   const exportPPT = async () => {
     toast.info("Generating PPT…");
