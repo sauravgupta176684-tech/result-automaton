@@ -647,7 +647,11 @@ function ResultCardDialog({ result, exam }: { result: StudentResult; exam: ExamT
             <Stat label="Grade" value={result.grade} />
             <Stat label="Rank" value={`#${result.rank}`} />
           </div>
-          <Button className="w-full" onClick={downloadPdf}><Download className="size-4 mr-2" /> Download PDF</Button>
+          <div className="grid grid-cols-2 gap-2">
+            <Button variant="outline" onClick={downloadPdf}><Download className="size-4 mr-2" /> Download PDF</Button>
+            <Button onClick={downloadExcel}><FileSpreadsheet className="size-4 mr-2" /> Download Excel</Button>
+          </div>
+
         </div>
       </DialogContent>
     </Dialog>
