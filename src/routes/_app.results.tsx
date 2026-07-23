@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { Trophy, Download, FileText, Medal, Presentation } from "lucide-react";
+import { Trophy, Download, FileText, Medal, Presentation, Upload, FileSpreadsheet } from "lucide-react";
+
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
@@ -61,19 +62,60 @@ function ResultsPage() {
         "Sr. No.": r.student.roll,
         "ROLL NO": r.student.enrollment,
         "Name": r.student.name,
+        "Section": r.student.section,
+        "Semester": r.student.semester,
+        "Course": r.student.course,
       };
-      SUBJECTS.forEach((s) => { row[s] = r.marks[s] ?? "A"; });
+      SUBJECTS.forEach((s) => { row[s] = r.marks[s] ?? ""; });
       row["Total"] = r.total;
-      row["%"] = +((r.total / r.maxTotal) * 100).toFixed(2);
+      row["Max"] = r.maxTotal;
+      row["%"] = +r.pct.toFixed(2);
+      row["Grade"] = r.grade;
       row["Result"] = r.pass ? "Pass" : "Fail";
+      row["Class Rank"] = r.rank;
+      row["Section Rank"] = r.sectionRank;
       return row;
     });
     const ws = XLSX.utils.json_to_sheet(rows);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Merit List");
     XLSX.writeFile(wb, `merit_${exam}.xlsx`);
-    toast.success("Excel exported");
+    toast.success("Excel exported — edit & re-import to sync");
   };
+
+  const importMerit = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = new Uint8Array(e.target?.result as ArrayBuffer);
+        const wb = XLSX.read(data, { type: "array" });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws);
+        let updated = 0;
+        rows.forEach((row) => {
+          const roll = String(row["Sr. No."] ?? row["Roll"] ?? row["Roll No"] ?? row["roll"] ?? "").trim();
+          const enr = String(row["ROLL NO"] ?? row["Enrollment"] ?? "").trim();
+          const student = state.students.find((s) => s.roll === roll || s.enrollment === enr);
+          if (!student) return;
+          SUBJECTS.forEach((sub) => {
+            const v = row[sub];
+            if (v !== undefined && v !== "" && v !== null) {
+              const n = Number(v);
+              if (!Number.isNaN(n) && n >= 0 && n <= cfg.maxMarks) {
+                examStore.setMark(exam, student.id, sub, n, session?.email ?? "excel-import");
+                updated++;
+              }
+            }
+          });
+        });
+        toast.success(`Synced ${updated} marks from Excel · results recalculated`);
+      } catch {
+        toast.error("Could not read Excel file");
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  };
+
 
   const exportPPT = async () => {
     toast.info("Generating PPT…");
@@ -288,8 +330,19 @@ function ResultsPage() {
             </TabsList>
           </Tabs>
           <Button variant="outline" size="sm" onClick={exportMerit}>
-            <Download className="size-4 mr-1.5" /> Excel
+            <FileSpreadsheet className="size-4 mr-1.5" /> Export Excel
           </Button>
+          {isTeacher && (
+            <label>
+              <input type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={(e) => {
+                const f = e.target.files?.[0]; if (f) importMerit(f); e.target.value = "";
+              }} />
+              <Button variant="outline" size="sm" asChild>
+                <span className="cursor-pointer"><Upload className="size-4 mr-1.5" /> Import Excel</span>
+              </Button>
+            </label>
+          )}
+
           <Button variant="outline" size="sm" onClick={exportAllPdf}>
             <FileText className="size-4 mr-1.5" /> All PDFs
           </Button>
@@ -529,6 +582,35 @@ function ResultCardDialog({ result, exam }: { result: StudentResult; exam: ExamT
     doc.save(`result_${result.student.roll}_${exam}.pdf`);
   };
 
+  const downloadExcel = () => {
+    const subMin = (cfg.passPct / 100) * cfg.maxMarks;
+    const info: (string | number)[][] = [
+      ["Smart Exam Result Management System"],
+      [EXAM_LABELS[exam] + " — Result Card"],
+      [],
+      ["Name", result.student.name, "", "Roll No", result.student.roll],
+      ["Enrollment", result.student.enrollment, "", "Course", result.student.course],
+      ["Semester", result.student.semester, "", "Section", result.student.section],
+      [],
+      ["Subject", "Max", "Marks", "Status"],
+      ...SUBJECTS.map((s) => {
+        const v = result.marks[s] ?? 0;
+        return [s, cfg.maxMarks, v, v >= subMin ? "Pass" : "Fail"];
+      }),
+      [],
+      ["Total", `${result.total} / ${result.maxTotal}`, "Percentage", `${result.pct.toFixed(2)}%`],
+      ["Grade", result.grade, "Status", result.pass ? "PASS" : "FAIL"],
+      ["Class Rank", `#${result.rank}`, "Section Rank", `#${result.sectionRank}`],
+    ];
+    const ws = XLSX.utils.aoa_to_sheet(info);
+    ws["!cols"] = [{ wch: 16 }, { wch: 22 }, { wch: 4 }, { wch: 16 }, { wch: 22 }];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Result Card");
+    XLSX.writeFile(wb, `result_${result.student.roll}_${exam}.xlsx`);
+    toast.success("Excel downloaded — editable in MS Excel");
+  };
+
+
   return (
     <Dialog>
       <DialogTrigger asChild>
@@ -565,7 +647,11 @@ function ResultCardDialog({ result, exam }: { result: StudentResult; exam: ExamT
             <Stat label="Grade" value={result.grade} />
             <Stat label="Rank" value={`#${result.rank}`} />
           </div>
-          <Button className="w-full" onClick={downloadPdf}><Download className="size-4 mr-2" /> Download PDF</Button>
+          <div className="grid grid-cols-2 gap-2">
+            <Button variant="outline" onClick={downloadPdf}><Download className="size-4 mr-2" /> Download PDF</Button>
+            <Button onClick={downloadExcel}><FileSpreadsheet className="size-4 mr-2" /> Download Excel</Button>
+          </div>
+
         </div>
       </DialogContent>
     </Dialog>
