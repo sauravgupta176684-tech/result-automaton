@@ -330,8 +330,19 @@ function ResultsPage() {
             </TabsList>
           </Tabs>
           <Button variant="outline" size="sm" onClick={exportMerit}>
-            <Download className="size-4 mr-1.5" /> Excel
+            <FileSpreadsheet className="size-4 mr-1.5" /> Export Excel
           </Button>
+          {isTeacher && (
+            <label>
+              <input type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={(e) => {
+                const f = e.target.files?.[0]; if (f) importMerit(f); e.target.value = "";
+              }} />
+              <Button variant="outline" size="sm" asChild>
+                <span className="cursor-pointer"><Upload className="size-4 mr-1.5" /> Import Excel</span>
+              </Button>
+            </label>
+          )}
+
           <Button variant="outline" size="sm" onClick={exportAllPdf}>
             <FileText className="size-4 mr-1.5" /> All PDFs
           </Button>
