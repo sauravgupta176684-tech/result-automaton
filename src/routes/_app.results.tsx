@@ -83,6 +83,78 @@ function ResultsPage() {
     toast.success("Excel exported — edit & re-import to sync");
   };
 
+  const downloadAllResultsExcel = () => {
+    const wb = XLSX.utils.book_new();
+
+    // Sheet 1: All results across every exam
+    const allResultsRows = state.students.map((stu) => {
+      const row: Record<string, string | number> = {
+        "Roll No": stu.roll,
+        "Enrollment": stu.enrollment,
+        "Name": stu.name,
+        "Section": stu.section,
+        "Semester": stu.semester,
+        "Course": stu.course,
+      };
+      EXAMS.forEach((e) => {
+        const cfg = state.config[e];
+        const res = computeResults(state, e).find((r) => r.student.id === stu.id)!;
+        SUBJECTS.forEach((s) => { row[`${EXAM_LABELS[e]}_${s}`] = res.marks[s] ?? ""; });
+        row[`${EXAM_LABELS[e]}_Total`] = res.total;
+        row[`${EXAM_LABELS[e]}_Max`] = res.maxTotal;
+        row[`${EXAM_LABELS[e]}_%`] = +res.pct.toFixed(2);
+        row[`${EXAM_LABELS[e]}_Grade`] = res.grade;
+        row[`${EXAM_LABELS[e]}_Result`] = res.pass ? "Pass" : "Fail";
+        row[`${EXAM_LABELS[e]}_ClassRank`] = res.rank;
+        row[`${EXAM_LABELS[e]}_SectionRank`] = res.sectionRank;
+      });
+      return row;
+    });
+    const wsAll = XLSX.utils.json_to_sheet(allResultsRows);
+    XLSX.utils.book_append_sheet(wb, wsAll, "All Results");
+
+    // Sheet 2: Current exam full merit list
+    const meritRows = sorted.map((r) => ({
+      "Sr. No.": r.student.roll,
+      "ROLL NO": r.student.enrollment,
+      "Name": r.student.name,
+      "Section": r.student.section,
+      "Semester": r.student.semester,
+      "Course": r.student.course,
+      ...Object.fromEntries(SUBJECTS.map((s) => [s, r.marks[s] ?? ""])),
+      "Total": r.total,
+      "Max": r.maxTotal,
+      "%": +r.pct.toFixed(2),
+      "Grade": r.grade,
+      "Result": r.pass ? "Pass" : "Fail",
+      "Class Rank": r.rank,
+      "Section Rank": r.sectionRank,
+    }));
+    const wsMerit = XLSX.utils.json_to_sheet(meritRows);
+    XLSX.utils.book_append_sheet(wb, wsMerit, `${EXAM_LABELS[exam]} Merit List`);
+
+    // Sheet 3: Toppers
+    const topperRows = [
+      { Type: "Class Topper", Name: classTopper?.student.name ?? "", Roll: classTopper?.student.roll ?? "", Section: classTopper?.student.section ?? "", Total: classTopper?.total ?? "", "%": classTopper ? +classTopper.pct.toFixed(2) : "", Grade: classTopper?.grade ?? "" },
+      ...sectionToppers.map((r) => ({ Type: `Section Topper ${r.student.section}`, Name: r.student.name, Roll: r.student.roll, Section: r.student.section, Total: r.total, "%": +r.pct.toFixed(2), Grade: r.grade })),
+      ...subjectToppers.map((st) => ({ Type: `Subject Topper ${st.subject}`, Name: st.topper?.student.name ?? "", Roll: st.topper?.student.roll ?? "", Section: st.topper?.student.section ?? "", Total: st.mark, "%": "", Grade: "" })),
+    ];
+    const wsToppers = XLSX.utils.json_to_sheet(topperRows);
+    XLSX.utils.book_append_sheet(wb, wsToppers, "Toppers");
+
+    // Sheet 4: Exam config
+    const configRows = EXAMS.map((e) => ({
+      Exam: EXAM_LABELS[e],
+      "Max Marks / Subject": state.config[e].maxMarks,
+      "Pass %": state.config[e].passPct,
+    }));
+    const wsConfig = XLSX.utils.json_to_sheet(configRows);
+    XLSX.utils.book_append_sheet(wb, wsConfig, "Exam Config");
+
+    XLSX.writeFile(wb, `all_results_${new Date().toISOString().slice(0, 10)}.xlsx`);
+    toast.success("All results exported to Excel — fully editable");
+  };
+
   const importMerit = (file: File) => {
     const reader = new FileReader();
     reader.onload = (e) => {
@@ -331,6 +403,9 @@ function ResultsPage() {
           </Tabs>
           <Button variant="outline" size="sm" onClick={exportMerit}>
             <FileSpreadsheet className="size-4 mr-1.5" /> Export Excel
+          </Button>
+          <Button variant="default" size="sm" onClick={downloadAllResultsExcel} className="bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-700 hover:to-emerald-600">
+            <FileSpreadsheet className="size-4 mr-1.5" /> Download Excel (.xlsx)
           </Button>
           {isTeacher && (
             <label>
