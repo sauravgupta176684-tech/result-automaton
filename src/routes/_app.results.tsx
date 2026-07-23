@@ -582,6 +582,35 @@ function ResultCardDialog({ result, exam }: { result: StudentResult; exam: ExamT
     doc.save(`result_${result.student.roll}_${exam}.pdf`);
   };
 
+  const downloadExcel = () => {
+    const subMin = (cfg.passPct / 100) * cfg.maxMarks;
+    const info: (string | number)[][] = [
+      ["Smart Exam Result Management System"],
+      [EXAM_LABELS[exam] + " — Result Card"],
+      [],
+      ["Name", result.student.name, "", "Roll No", result.student.roll],
+      ["Enrollment", result.student.enrollment, "", "Course", result.student.course],
+      ["Semester", result.student.semester, "", "Section", result.student.section],
+      [],
+      ["Subject", "Max", "Marks", "Status"],
+      ...SUBJECTS.map((s) => {
+        const v = result.marks[s] ?? 0;
+        return [s, cfg.maxMarks, v, v >= subMin ? "Pass" : "Fail"];
+      }),
+      [],
+      ["Total", `${result.total} / ${result.maxTotal}`, "Percentage", `${result.pct.toFixed(2)}%`],
+      ["Grade", result.grade, "Status", result.pass ? "PASS" : "FAIL"],
+      ["Class Rank", `#${result.rank}`, "Section Rank", `#${result.sectionRank}`],
+    ];
+    const ws = XLSX.utils.aoa_to_sheet(info);
+    ws["!cols"] = [{ wch: 16 }, { wch: 22 }, { wch: 4 }, { wch: 16 }, { wch: 22 }];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Result Card");
+    XLSX.writeFile(wb, `result_${result.student.roll}_${exam}.xlsx`);
+    toast.success("Excel downloaded — editable in MS Excel");
+  };
+
+
   return (
     <Dialog>
       <DialogTrigger asChild>
