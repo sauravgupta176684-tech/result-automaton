@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { Save, Download, Upload, AlertCircle, Search, Settings2, RotateCcw } from "lucide-react";
+import { Save, Download, Upload, AlertCircle, Search, Settings2, RotateCcw, Trash2, UserPlus } from "lucide-react";
 import * as XLSX from "xlsx";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -124,6 +124,7 @@ function MarksPage() {
         </div>
         <div className="flex flex-wrap gap-2">
           <ConfigDialog exam={exam} />
+          <AddStudentDialog />
           <label>
             <input type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={(e) => {
               const f = e.target.files?.[0]; if (f) handleImport(f); e.target.value = "";
@@ -183,15 +184,27 @@ function MarksPage() {
                 <th className="text-center px-3 py-2.5 font-semibold bg-primary/5">Grade</th>
                 <th className="text-center px-3 py-2.5 font-semibold bg-primary/5">Status</th>
                 <th className="text-center px-3 py-2.5 font-semibold bg-primary/5">Rank</th>
+                <th className="text-center px-3 py-2.5 font-semibold w-10"></th>
               </tr>
             </thead>
             <tbody>
               {filtered.map((r, idx) => (
                 <tr key={r.student.id} className="border-t border-border hover:bg-muted/30 transition-colors">
                   <td className="px-3 py-1.5 text-muted-foreground tabular-nums">{idx + 1}</td>
-                  <td className="px-3 py-1.5 font-mono text-xs">{r.student.roll}</td>
-                  <td className="px-3 py-1.5 font-medium">{r.student.name}</td>
-                  <td className="px-3 py-1.5"><Badge variant="outline" className="text-[10px]">{r.student.section}</Badge></td>
+                  <td className="px-2 py-1.5">
+                    <TextCell value={r.student.roll} onCommit={(v) => examStore.updateStudent(r.student.id, { roll: v })} className="font-mono text-xs w-24" />
+                  </td>
+                  <td className="px-2 py-1.5">
+                    <TextCell value={r.student.name} onCommit={(v) => examStore.updateStudent(r.student.id, { name: v })} className="font-medium w-40" />
+                  </td>
+                  <td className="px-2 py-1.5">
+                    <Select value={r.student.section} onValueChange={(v) => examStore.updateStudent(r.student.id, { section: v as typeof SECTIONS[number] })}>
+                      <SelectTrigger className="h-7 w-16 text-xs px-2"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {SECTIONS.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </td>
                   {SUBJECTS.map((sub) => (
                     <MarkCell key={sub} examType={exam} studentId={r.student.id} subject={sub} value={r.marks[sub] ?? null} max={cfg.maxMarks} user={session?.email ?? "anon"} />
                   ))}
@@ -206,10 +219,25 @@ function MarksPage() {
                     </span>
                   </td>
                   <td className="text-center font-semibold tabular-nums bg-primary/5">#{r.rank}</td>
+                  <td className="text-center">
+                    <button
+                      type="button"
+                      title="Delete student"
+                      onClick={() => {
+                        if (confirm(`Delete ${r.student.name} (${r.student.roll})? Ye sab exams se hat jayega.`)) {
+                          examStore.deleteStudent(r.student.id);
+                          toast.success("Student deleted");
+                        }
+                      }}
+                      className="p-1.5 rounded hover:bg-destructive/10 text-destructive/70 hover:text-destructive transition"
+                    >
+                      <Trash2 className="size-4" />
+                    </button>
+                  </td>
                 </tr>
               ))}
               {filtered.length === 0 && (
-                <tr><td colSpan={11} className="text-center py-10 text-muted-foreground">No students match your filters</td></tr>
+                <tr><td colSpan={12} className="text-center py-10 text-muted-foreground">No students match your filters</td></tr>
               )}
             </tbody>
           </table>
@@ -313,6 +341,67 @@ function ConfigDialog({ exam }: { exam: ExamType }) {
         <DialogFooter>
           <Button onClick={save}>Save changes</Button>
         </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function TextCell({ value, onCommit, className }: { value: string; onCommit: (v: string) => void; className?: string }) {
+  const [draft, setDraft] = useState(value);
+  useEffect(() => { setDraft(value); }, [value]);
+  const commit = () => {
+    const t = draft.trim();
+    if (!t) { setDraft(value); return; }
+    if (t !== value) onCommit(t);
+  };
+  return (
+    <input
+      value={draft}
+      onChange={(e) => setDraft(e.target.value)}
+      onBlur={commit}
+      onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); if (e.key === "Escape") { setDraft(value); e.currentTarget.blur(); } }}
+      className={`px-2 py-1 rounded border border-transparent hover:border-border focus:border-primary focus:ring-2 focus:ring-primary/20 bg-background focus:outline-none text-sm ${className ?? ""}`}
+    />
+  );
+}
+
+function AddStudentDialog() {
+  const [open, setOpen] = useState(false);
+  const [name, setName] = useState("");
+  const [roll, setRoll] = useState("");
+  const [enrollment, setEnrollment] = useState("");
+  const [section, setSection] = useState<typeof SECTIONS[number]>("B1");
+  const save = () => {
+    if (!name.trim() || !roll.trim()) { toast.error("Name aur Roll No zaroori hai"); return; }
+    const ok = examStore.addStudent({
+      name: name.trim(), roll: roll.trim(),
+      enrollment: enrollment.trim() || roll.trim(),
+      semester: 2, section, course: "B.Tech CSE",
+    });
+    if (!ok) { toast.error("Roll No pehle se maujood hai"); return; }
+    toast.success("Student add ho gaya");
+    setName(""); setRoll(""); setEnrollment(""); setOpen(false);
+  };
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="outline" size="sm"><UserPlus className="size-4 mr-1.5" /> Add Student</Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader><DialogTitle>Add new student</DialogTitle></DialogHeader>
+        <div className="space-y-3 py-2">
+          <div className="space-y-1.5"><label className="text-sm font-medium">Name</label><Input value={name} onChange={(e) => setName(e.target.value)} /></div>
+          <div className="space-y-1.5"><label className="text-sm font-medium">Roll No</label><Input value={roll} onChange={(e) => setRoll(e.target.value)} placeholder="B2-101" /></div>
+          <div className="space-y-1.5"><label className="text-sm font-medium">Enrollment</label><Input value={enrollment} onChange={(e) => setEnrollment(e.target.value)} /></div>
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium">Section</label>
+            <Select value={section} onValueChange={(v) => setSection(v as typeof SECTIONS[number])}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>{SECTIONS.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
+            </Select>
+          </div>
+        </div>
+        <DialogFooter><Button onClick={save}>Add</Button></DialogFooter>
       </DialogContent>
     </Dialog>
   );
