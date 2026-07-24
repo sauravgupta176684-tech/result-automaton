@@ -183,15 +183,27 @@ function MarksPage() {
                 <th className="text-center px-3 py-2.5 font-semibold bg-primary/5">Grade</th>
                 <th className="text-center px-3 py-2.5 font-semibold bg-primary/5">Status</th>
                 <th className="text-center px-3 py-2.5 font-semibold bg-primary/5">Rank</th>
+                <th className="text-center px-3 py-2.5 font-semibold w-10"></th>
               </tr>
             </thead>
             <tbody>
               {filtered.map((r, idx) => (
                 <tr key={r.student.id} className="border-t border-border hover:bg-muted/30 transition-colors">
                   <td className="px-3 py-1.5 text-muted-foreground tabular-nums">{idx + 1}</td>
-                  <td className="px-3 py-1.5 font-mono text-xs">{r.student.roll}</td>
-                  <td className="px-3 py-1.5 font-medium">{r.student.name}</td>
-                  <td className="px-3 py-1.5"><Badge variant="outline" className="text-[10px]">{r.student.section}</Badge></td>
+                  <td className="px-2 py-1.5">
+                    <TextCell value={r.student.roll} onCommit={(v) => examStore.updateStudent(r.student.id, { roll: v })} className="font-mono text-xs w-24" />
+                  </td>
+                  <td className="px-2 py-1.5">
+                    <TextCell value={r.student.name} onCommit={(v) => examStore.updateStudent(r.student.id, { name: v })} className="font-medium w-40" />
+                  </td>
+                  <td className="px-2 py-1.5">
+                    <Select value={r.student.section} onValueChange={(v) => examStore.updateStudent(r.student.id, { section: v as typeof SECTIONS[number] })}>
+                      <SelectTrigger className="h-7 w-16 text-xs px-2"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {SECTIONS.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </td>
                   {SUBJECTS.map((sub) => (
                     <MarkCell key={sub} examType={exam} studentId={r.student.id} subject={sub} value={r.marks[sub] ?? null} max={cfg.maxMarks} user={session?.email ?? "anon"} />
                   ))}
@@ -206,10 +218,25 @@ function MarksPage() {
                     </span>
                   </td>
                   <td className="text-center font-semibold tabular-nums bg-primary/5">#{r.rank}</td>
+                  <td className="text-center">
+                    <button
+                      type="button"
+                      title="Delete student"
+                      onClick={() => {
+                        if (confirm(`Delete ${r.student.name} (${r.student.roll})? Ye sab exams se hat jayega.`)) {
+                          examStore.deleteStudent(r.student.id);
+                          toast.success("Student deleted");
+                        }
+                      }}
+                      className="p-1.5 rounded hover:bg-destructive/10 text-destructive/70 hover:text-destructive transition"
+                    >
+                      <Trash2 className="size-4" />
+                    </button>
+                  </td>
                 </tr>
               ))}
               {filtered.length === 0 && (
-                <tr><td colSpan={11} className="text-center py-10 text-muted-foreground">No students match your filters</td></tr>
+                <tr><td colSpan={12} className="text-center py-10 text-muted-foreground">No students match your filters</td></tr>
               )}
             </tbody>
           </table>
