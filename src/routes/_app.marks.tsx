@@ -124,6 +124,7 @@ function MarksPage() {
         </div>
         <div className="flex flex-wrap gap-2">
           <ConfigDialog exam={exam} />
+          <AddStudentDialog />
           <label>
             <input type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={(e) => {
               const f = e.target.files?.[0]; if (f) handleImport(f); e.target.value = "";
