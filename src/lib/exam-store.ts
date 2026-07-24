@@ -206,6 +206,35 @@ export const examStore = {
     setState((s) => ({ ...s, students: [...s.students, { ...student, id: crypto.randomUUID() }] }));
     return true;
   },
+  updateStudent(id: string, patch: Partial<Omit<Student, "id">>) {
+    setState((s) => ({
+      ...s,
+      students: s.students.map((stu) => (stu.id === id ? { ...stu, ...patch } : stu)),
+    }));
+  },
+  deleteStudent(id: string) {
+    setState((s) => {
+      const nextMarks = { ...s.marks } as State["marks"];
+      (Object.keys(nextMarks) as ExamType[]).forEach((e) => {
+        const copy = { ...nextMarks[e] };
+        delete copy[id];
+        nextMarks[e] = copy;
+      });
+      return { ...s, students: s.students.filter((stu) => stu.id !== id), marks: nextMarks };
+    });
+  },
+  clearStudentMarks(id: string, exam?: ExamType) {
+    setState((s) => {
+      const nextMarks = { ...s.marks } as State["marks"];
+      const exams: ExamType[] = exam ? [exam] : (Object.keys(nextMarks) as ExamType[]);
+      exams.forEach((e) => {
+        const copy = { ...nextMarks[e] };
+        delete copy[id];
+        nextMarks[e] = copy;
+      });
+      return { ...s, marks: nextMarks };
+    });
+  },
 };
 
 export function useExamStore<T>(selector: (s: State) => T): T {
