@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { Save, Download, Upload, AlertCircle, Search, Settings2, RotateCcw } from "lucide-react";
+import { Save, Download, Upload, AlertCircle, Search, Settings2, RotateCcw, Trash2, UserPlus } from "lucide-react";
 import * as XLSX from "xlsx";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
