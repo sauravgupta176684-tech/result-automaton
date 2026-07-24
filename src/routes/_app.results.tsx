@@ -580,14 +580,23 @@ function ResultsPage() {
                   <th className="px-2 py-2 font-semibold border border-primary/30">Total</th>
                   <th className="px-2 py-2 font-semibold border border-primary/30">%</th>
                   <th className="px-2 py-2 font-semibold border border-primary/30">Result</th>
+                  {isTeacher && <th className="px-2 py-2 font-semibold border border-primary/30 w-8"></th>}
                 </tr>
               </thead>
               <tbody>
                 {sorted.map((r) => (
                   <tr key={r.student.id} className="hover:bg-muted/40">
-                    <td className="px-2 py-1.5 border text-center font-mono">{r.student.roll}</td>
+                    <td className="px-2 py-1.5 border text-center font-mono">
+                      {isTeacher ? (
+                        <InlineText value={r.student.roll} onCommit={(v) => examStore.updateStudent(r.student.id, { roll: v })} className="w-20 text-center" />
+                      ) : r.student.roll}
+                    </td>
                     <td className="px-2 py-1.5 border text-center font-mono text-[10px]">{r.student.enrollment}</td>
-                    <td className="px-2 py-1.5 border font-medium">{r.student.name}</td>
+                    <td className="px-2 py-1.5 border font-medium">
+                      {isTeacher ? (
+                        <InlineText value={r.student.name} onCommit={(v) => examStore.updateStudent(r.student.id, { name: v })} className="w-full" />
+                      ) : r.student.name}
+                    </td>
                     {SUBJECTS.map((sub) => (
                       <EditableMark
                         key={sub}
@@ -606,6 +615,23 @@ function ResultsPage() {
                     <td className={`px-2 py-1.5 border text-center font-semibold ${r.pass ? "text-success" : "text-destructive"}`}>
                       {r.pass ? "Pass" : "Fail"}
                     </td>
+                    {isTeacher && (
+                      <td className="px-1 py-1.5 border text-center">
+                        <button
+                          type="button"
+                          title="Delete student"
+                          onClick={() => {
+                            if (confirm(`Delete ${r.student.name} (${r.student.roll})?`)) {
+                              examStore.deleteStudent(r.student.id);
+                              toast.success("Student deleted");
+                            }
+                          }}
+                          className="p-1 rounded hover:bg-destructive/10 text-destructive/70 hover:text-destructive transition"
+                        >
+                          <Trash2 className="size-3.5" />
+                        </button>
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>
