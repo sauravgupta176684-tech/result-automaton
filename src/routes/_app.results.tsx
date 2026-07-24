@@ -844,3 +844,23 @@ function EditableMark({ exam, studentId, subject, value, max, passPct, user, can
   );
 }
 
+function InlineText({ value, onCommit, className }: { value: string; onCommit: (v: string) => void; className?: string }) {
+  const [draft, setDraft] = useState(value);
+  useMemo(() => setDraft(value), [value]);
+  const commit = () => {
+    const t = draft.trim();
+    if (!t) { setDraft(value); return; }
+    if (t !== value) { onCommit(t); toast.success("Updated"); }
+  };
+  return (
+    <input
+      value={draft}
+      onChange={(e) => setDraft(e.target.value)}
+      onBlur={commit}
+      onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); if (e.key === "Escape") { setDraft(value); e.currentTarget.blur(); } }}
+      className={`px-1.5 py-0.5 rounded border border-transparent hover:border-border focus:border-primary focus:ring-2 focus:ring-primary/20 bg-transparent focus:bg-background focus:outline-none text-xs ${className ?? ""}`}
+    />
+  );
+}
+
+
