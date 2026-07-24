@@ -345,3 +345,64 @@ function ConfigDialog({ exam }: { exam: ExamType }) {
     </Dialog>
   );
 }
+
+function TextCell({ value, onCommit, className }: { value: string; onCommit: (v: string) => void; className?: string }) {
+  const [draft, setDraft] = useState(value);
+  useEffect(() => { setDraft(value); }, [value]);
+  const commit = () => {
+    const t = draft.trim();
+    if (!t) { setDraft(value); return; }
+    if (t !== value) onCommit(t);
+  };
+  return (
+    <input
+      value={draft}
+      onChange={(e) => setDraft(e.target.value)}
+      onBlur={commit}
+      onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); if (e.key === "Escape") { setDraft(value); e.currentTarget.blur(); } }}
+      className={`px-2 py-1 rounded border border-transparent hover:border-border focus:border-primary focus:ring-2 focus:ring-primary/20 bg-background focus:outline-none text-sm ${className ?? ""}`}
+    />
+  );
+}
+
+function AddStudentDialog() {
+  const [open, setOpen] = useState(false);
+  const [name, setName] = useState("");
+  const [roll, setRoll] = useState("");
+  const [enrollment, setEnrollment] = useState("");
+  const [section, setSection] = useState<typeof SECTIONS[number]>("B1");
+  const save = () => {
+    if (!name.trim() || !roll.trim()) { toast.error("Name aur Roll No zaroori hai"); return; }
+    const ok = examStore.addStudent({
+      name: name.trim(), roll: roll.trim(),
+      enrollment: enrollment.trim() || roll.trim(),
+      semester: 2, section, course: "B.Tech CSE",
+    });
+    if (!ok) { toast.error("Roll No pehle se maujood hai"); return; }
+    toast.success("Student add ho gaya");
+    setName(""); setRoll(""); setEnrollment(""); setOpen(false);
+  };
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="outline" size="sm"><UserPlus className="size-4 mr-1.5" /> Add Student</Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader><DialogTitle>Add new student</DialogTitle></DialogHeader>
+        <div className="space-y-3 py-2">
+          <div className="space-y-1.5"><label className="text-sm font-medium">Name</label><Input value={name} onChange={(e) => setName(e.target.value)} /></div>
+          <div className="space-y-1.5"><label className="text-sm font-medium">Roll No</label><Input value={roll} onChange={(e) => setRoll(e.target.value)} placeholder="B2-101" /></div>
+          <div className="space-y-1.5"><label className="text-sm font-medium">Enrollment</label><Input value={enrollment} onChange={(e) => setEnrollment(e.target.value)} /></div>
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium">Section</label>
+            <Select value={section} onValueChange={(v) => setSection(v as typeof SECTIONS[number])}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>{SECTIONS.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
+            </Select>
+          </div>
+        </div>
+        <DialogFooter><Button onClick={save}>Add</Button></DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
