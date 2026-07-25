@@ -1,7 +1,7 @@
 import { createFileRoute, Link, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { LayoutDashboard, Pencil, FileBarChart, GraduationCap, LogOut, ClipboardList } from "lucide-react";
-import { auth, useSession, useIsTeacher } from "@/lib/auth";
+import { auth, useAuth, useIsTeacher } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
