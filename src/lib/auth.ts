@@ -1,68 +1,97 @@
-import { useSyncExternalStore } from "react";
+import { useEffect, useState } from "react";
+import type { Session, User } from "@supabase/supabase-js";
+import { supabase } from "@/integrations/supabase/client";
 
-const KEY = "exam-auth-v1";
-const PIN_KEY = "exam-teacher-pin-v1";
+export type AppRole = "teacher" | "viewer";
 
-type Session = { email: string; isTeacher: boolean } | null;
+type AuthState = {
+  session: Session | null;
+  user: User | null;
+  role: AppRole | null;
+  loading: boolean;
+};
 
-// Default PIN. Aap ise apne PIN se badal sakte ho:
-// Auth page par "Change teacher PIN" link se, ya yahan directly.
-// Jis bhi user ke paas PIN hoga sirf wahi edit kar sakta hai.
-// Bina PIN ke login karne wala automatically VIEWER (read-only) hota hai.
-export const DEFAULT_TEACHER_PIN = "1234";
-
-export function getTeacherPin(): string {
-  if (typeof window === "undefined") return DEFAULT_TEACHER_PIN;
-  return localStorage.getItem(PIN_KEY) || DEFAULT_TEACHER_PIN;
-}
-
-export function setTeacherPin(pin: string) {
-  if (typeof window === "undefined") return;
-  if (pin.trim()) localStorage.setItem(PIN_KEY, pin.trim());
-}
-
-let session: Session = load();
+let state: AuthState = { session: null, user: null, role: null, loading: true };
 const listeners = new Set<() => void>();
 
-function load(): Session {
-  if (typeof window === "undefined") return null;
-  try {
-    const raw = localStorage.getItem(KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    // backward compat: agar purana session bina isTeacher ke hai to viewer maan lo
-    if (typeof parsed?.isTeacher !== "boolean") {
-      return { email: parsed.email, isTeacher: false };
-    }
-    return parsed;
-  } catch { return null; }
-}
-
-function persist() {
-  if (typeof window !== "undefined") {
-    if (session) localStorage.setItem(KEY, JSON.stringify(session));
-    else localStorage.removeItem(KEY);
-  }
+function emit() {
   listeners.forEach((l) => l());
 }
 
-export const auth = {
-  get: () => session,
-  subscribe: (l: () => void) => { listeners.add(l); return () => listeners.delete(l); },
-  signIn(email: string, pin?: string) {
-    const isTeacher = !!pin && pin.trim() === getTeacherPin();
-    session = { email, isTeacher };
-    persist();
-    return isTeacher;
-  },
-  signOut() { session = null; persist(); },
-};
-
-export function useSession() {
-  return useSyncExternalStore(auth.subscribe, () => auth.get(), () => auth.get());
+function set(patch: Partial<AuthState>) {
+  state = { ...state, ...patch };
+  emit();
 }
 
+async function resolveRole(session: Session | null) {
+  if (!session) {
+    set({ role: null, loading: false });
+    return;
+  }
+  // Server-side security definer fn: assigns teacher to the very first
+  // account, viewer to everyone else. Cannot be spoofed from the client.
+  const { data, error } = await supabase.rpc("ensure_my_role");
+  set({ role: error ? "viewer" : ((data as AppRole) ?? "viewer"), loading: false });
+}
+
+let initialized = false;
+function init() {
+  if (initialized || typeof window === "undefined") return;
+  initialized = true;
+
+  supabase.auth.onAuthStateChange((_event, session) => {
+    set({ session, user: session?.user ?? null, loading: true });
+    void resolveRole(session);
+  });
+
+  void supabase.auth.getSession().then(({ data }) => {
+    set({ session: data.session, user: data.session?.user ?? null, loading: true });
+    void resolveRole(data.session);
+  });
+}
+
+export const auth = {
+  get: () => state,
+  subscribe(l: () => void) {
+    init();
+    listeners.add(l);
+    return () => listeners.delete(l);
+  },
+  signInWithPassword: (email: string, password: string) =>
+    supabase.auth.signInWithPassword({ email, password }),
+  signUp: (email: string, password: string) =>
+    supabase.auth.signUp({
+      email,
+      password,
+      options: { emailRedirectTo: `${window.location.origin}/dashboard` },
+    }),
+  resetPassword: (email: string) =>
+    supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/reset-password`,
+    }),
+  async signOut() {
+    await supabase.auth.signOut();
+    set({ session: null, user: null, role: null, loading: false });
+  },
+};
+
+export function useAuth(): AuthState {
+  const [snap, setSnap] = useState<AuthState>(state);
+  useEffect(() => {
+    const unsub = auth.subscribe(() => setSnap(auth.get()));
+    setSnap(auth.get());
+    return () => { unsub(); };
+  }, []);
+  return snap;
+}
+
+/** Returns the signed-in user (has `.email`), or null. */
+export function useSession() {
+  return useAuth().user;
+}
+
+/** Only the teacher account can edit. Everyone else is strictly read-only. */
 export function useIsTeacher(): boolean {
-  const s = useSession();
-  return !!s?.isTeacher;
+  const { role } = useAuth();
+  return role === "teacher";
 }
