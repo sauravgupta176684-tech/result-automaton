@@ -18,7 +18,7 @@ const NAV = [
 ] as const;
 
 function AppLayout() {
-  const session = useSession();
+  const { user: session, loading } = useAuth();
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const isTeacher = useIsTeacher();
@@ -27,11 +27,12 @@ function AppLayout() {
 
   useEffect(() => { setMounted(true); }, []);
   useEffect(() => {
-    if (mounted && !session) navigate({ to: "/auth" });
-  }, [mounted, session, navigate]);
+    if (mounted && !loading && !session) navigate({ to: "/auth" });
+  }, [mounted, loading, session, navigate]);
 
-  if (!mounted) return <div className="min-h-screen bg-muted/40" />;
+  if (!mounted || loading) return <div className="min-h-screen bg-muted/40" />;
   if (!session) return null;
+
 
   return (
     <div className="min-h-screen flex bg-muted/40">
