@@ -1,18 +1,32 @@
 import { useSyncExternalStore } from "react";
 
-export type ExamType = "midsem" | "put" | "internal" | "endsem";
+export type ExamType = "midsem" | "put";
+export const EXAM_TYPES: ExamType[] = ["midsem", "put"];
 export const EXAM_LABELS: Record<ExamType, string> = {
   midsem: "Mid Sem",
   put: "PUT",
-  internal: "Internal Assessment",
-  endsem: "End Semester",
+};
+export const EXAM_FULL: Record<ExamType, string> = {
+  midsem: "Mid Semester Examination",
+  put: "Pre University Test (PUT)",
 };
 
 export const SUBJECTS = ["BT101", "BT202", "BT103", "BT104", "BT105"] as const;
 export type Subject = (typeof SUBJECTS)[number];
 
+export const SUBJECT_NAMES: Record<Subject, string> = {
+  BT101: "Engineering Mathematics",
+  BT202: "Engineering Physics",
+  BT103: "Basic Electrical Engg.",
+  BT104: "Programming in C",
+  BT105: "Engineering Graphics",
+};
+
 export const SECTIONS = ["B1", "B2", "B3", "B4", "B5"] as const;
 export type Section = (typeof SECTIONS)[number];
+
+export const BRANCHES = ["CSE", "IT", "ECE", "ME", "CE"] as const;
+export type Branch = (typeof BRANCHES)[number];
 
 export interface Student {
   id: string;
@@ -21,6 +35,7 @@ export interface Student {
   enrollment: string;
   semester: number;
   section: Section;
+  branch: Branch;
   course: string;
 }
 
@@ -42,11 +57,12 @@ export interface AuditEntry {
 interface State {
   students: Student[];
   marks: Record<ExamType, Record<string, Partial<Record<Subject, number>>>>;
+  updated: Record<ExamType, Record<string, number>>;
   config: Record<ExamType, ExamConfig>;
   audit: AuditEntry[];
 }
 
-const KEY = "exam-store-v4";
+const KEY = "exam-store-v5";
 
 const FIRST = [
   "Aarav","Saurav","Gaurav","Sanskriti","Aashi","Vivaan","Aditya","Vihaan","Arjun","Sai",
@@ -55,10 +71,10 @@ const FIRST = [
   "Ira","Aarohi","Anaya","Avni","Pari","Riya","Siya","Tara","Kiara","Mira",
   "Navya","Prisha","Sara","Zara","Rohan","Neel","Karan","Vikram","Manav","Yash",
   "Tanish","Dev","Om","Parth","Meghna","Priyanka","Rishika","Amrita","Krati","Jasraj",
-  "Chandni","Akhil","Neeraj","Nitin","Akrati","Bhanu","Atharv","Vedant","Yuvraj","Saket",
-  "Akshay","Ashish","Palash","Shubh","Nitesh","Bhomik","Satyam","Sreyansh","Shreyansh","Deepali",
-  "Poorvi","Anshul","Ayush","Gaurav","Sanket","Neeyansha","Aditi","Khushi","Tanya","Sneha",
-  "Ravi","Mohit","Sahil","Aman","Harsh","Rajat","Nikhil","Varun","Kunal","Abhay",
+  "Chandni","Akhil","Neeraj","Nitin","Akrati","Bhanu","Vedant","Yuvraj","Saket","Palash",
+  "Akshay","Ashish","Shubh","Nitesh","Bhomik","Satyam","Sreyansh","Shreyansh","Deepali","Poorvi",
+  "Anshul","Ayush","Sanket","Neeyansha","Aditi","Khushi","Tanya","Sneha","Ravi","Mohit",
+  "Sahil","Aman","Harsh","Rajat","Nikhil","Varun","Kunal","Abhay","Ritu","Simran",
 ];
 const LAST = [
   "Sharma","Verma","Patel","Gupta","Singh","Kumar","Mehta","Joshi","Shah","Rao",
@@ -83,6 +99,7 @@ function seed(): State {
 
   const students: Student[] = Array.from({ length: 100 }).map((_, i) => {
     const section = SECTIONS[i % SECTIONS.length];
+    const branch = BRANCHES[i % BRANCHES.length];
     const num = String(i + 1).padStart(3, "0");
     return {
       id: `stu-${num}`,
@@ -91,48 +108,57 @@ function seed(): State {
       enrollment: `0246AL2510${num.padStart(2, "0")}`,
       semester: 2,
       section,
-      course: "B.Tech CSE",
+      branch,
+      course: `B.Tech ${branch}`,
     };
   });
 
-  const examTypes: ExamType[] = ["midsem", "put", "internal", "endsem"];
   const defaults: Record<ExamType, ExamConfig> = {
     midsem: { maxMarks: 20, passPct: 35 },
     put: { maxMarks: 70, passPct: 33 },
-    internal: { maxMarks: 20, passPct: 35 },
-    endsem: { maxMarks: 70, passPct: 35 },
   };
 
-  const marks = Object.fromEntries(
-    examTypes.map((e) => {
-      const max = defaults[e].maxMarks;
-      const map: Record<string, Partial<Record<Subject, number>>> = {};
-      for (const s of students) {
-        map[s.id] = {};
-        for (const sub of SUBJECTS) {
-          // Realistic spread, occasional fail
-          const low = Math.floor(max * 0.15);
-          const high = Math.floor(max * 0.98);
-          map[s.id][sub] = ri(low, high);
-        }
+  const baseTs = Date.UTC(2026, 6, 20, 9, 30);
+  const marks = {} as State["marks"];
+  const updated = {} as State["updated"];
+  for (const e of EXAM_TYPES) {
+    const max = defaults[e].maxMarks;
+    const map: Record<string, Partial<Record<Subject, number>>> = {};
+    const upd: Record<string, number> = {};
+    for (const s of students) {
+      map[s.id] = {};
+      for (const sub of SUBJECTS) {
+        const low = Math.floor(max * 0.15);
+        const high = Math.floor(max * 0.98);
+        map[s.id][sub] = ri(low, high);
       }
-      return [e, map];
-    }),
-  ) as State["marks"];
+      upd[s.id] = baseTs;
+    }
+    marks[e] = map;
+    updated[e] = upd;
+  }
 
-  return { students, marks, config: defaults, audit: [] };
+  return { students, marks, updated, config: defaults, audit: [] };
 }
 
 // Stable initial state used during SSR AND on first client render.
-// Real data hydrates after mount via store subscription.
 const initialState: State = seed();
 let state: State = initialState;
 const listeners = new Set<() => void>();
 
+function migrate(raw: State): State {
+  if (!raw.updated) raw.updated = { midsem: {}, put: {} };
+  raw.students = raw.students.map((s, i) => ({
+    ...s,
+    branch: s.branch ?? BRANCHES[i % BRANCHES.length],
+  }));
+  return raw;
+}
+
 function load(): State {
   try {
     const raw = localStorage.getItem(KEY);
-    if (raw) return JSON.parse(raw) as State;
+    if (raw) return migrate(JSON.parse(raw) as State);
   } catch {}
   const s = seed();
   localStorage.setItem(KEY, JSON.stringify(s));
@@ -151,7 +177,6 @@ function setState(updater: (s: State) => State) {
   persist();
 }
 
-// Hydrate from localStorage on the client after first paint
 if (typeof window !== "undefined") {
   queueMicrotask(() => {
     state = load();
@@ -179,10 +204,12 @@ export const examStore = {
       const next = { ...s };
       next.marks = { ...s.marks };
       next.marks[exam] = { ...s.marks[exam] };
+      // Only this student's row object is replaced — no cross-record mixing.
       const studentMarks = { ...(s.marks[exam][studentId] ?? {}) };
       if (value === null) delete studentMarks[subject];
       else studentMarks[subject] = value;
       next.marks[exam][studentId] = studentMarks;
+      next.updated = { ...s.updated, [exam]: { ...s.updated[exam], [studentId]: Date.now() } };
       next.audit = [
         { ts: Date.now(), user, studentRoll: student.roll, subject, exam, oldValue: old, newValue: value },
         ...s.audit,
@@ -215,7 +242,7 @@ export const examStore = {
   deleteStudent(id: string) {
     setState((s) => {
       const nextMarks = { ...s.marks } as State["marks"];
-      (Object.keys(nextMarks) as ExamType[]).forEach((e) => {
+      EXAM_TYPES.forEach((e) => {
         const copy = { ...nextMarks[e] };
         delete copy[id];
         nextMarks[e] = copy;
@@ -226,7 +253,7 @@ export const examStore = {
   clearStudentMarks(id: string, exam?: ExamType) {
     setState((s) => {
       const nextMarks = { ...s.marks } as State["marks"];
-      const exams: ExamType[] = exam ? [exam] : (Object.keys(nextMarks) as ExamType[]);
+      const exams: ExamType[] = exam ? [exam] : EXAM_TYPES;
       exams.forEach((e) => {
         const copy = { ...nextMarks[e] };
         delete copy[id];
@@ -256,6 +283,7 @@ export interface StudentResult {
   pass: boolean;
   rank: number;
   sectionRank: number;
+  updatedAt: number;
 }
 
 export function gradeFor(pct: number, passPct: number): { grade: string; pass: boolean } {
@@ -292,6 +320,7 @@ export function computeResults(s: State, exam: ExamType): StudentResult[] {
       pass: pass && allSubPass && any,
       rank: 0,
       sectionRank: 0,
+      updatedAt: s.updated?.[exam]?.[stu.id] ?? 0,
     } as StudentResult;
   });
   const sorted = [...rows].sort((a, b) => b.total - a.total);
@@ -306,4 +335,9 @@ export function computeResults(s: State, exam: ExamType): StudentResult[] {
     arr.forEach((r, i) => (r.sectionRank = i + 1));
   });
   return rows;
+}
+
+export function formatDate(ts: number) {
+  if (!ts) return "—";
+  return new Date(ts).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
 }

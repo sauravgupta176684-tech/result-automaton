@@ -22,7 +22,7 @@ export const Route = createFileRoute("/_app/results")({
   component: ResultsPage,
 });
 
-const EXAMS: ExamType[] = ["midsem", "put", "internal", "endsem"];
+const EXAMS: ExamType[] = ["midsem", "put"];
 
 function ResultsPage() {
   const state = useExamStore((s) => s);
