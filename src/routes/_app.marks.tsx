@@ -25,7 +25,7 @@ export const Route = createFileRoute("/_app/marks")({
   component: MarksPage,
 });
 
-const EXAMS: ExamType[] = ["midsem", "put", "internal", "endsem"];
+const EXAMS: ExamType[] = ["midsem", "put"];
 
 function MarksPage() {
   const session = useSession();
@@ -376,7 +376,7 @@ function AddStudentDialog() {
     const ok = examStore.addStudent({
       name: name.trim(), roll: roll.trim(),
       enrollment: enrollment.trim() || roll.trim(),
-      semester: 2, section, course: "B.Tech CSE",
+      semester: 2, section, branch: "CSE", course: "B.Tech CSE",
     });
     if (!ok) { toast.error("Roll No pehle se maujood hai"); return; }
     toast.success("Student add ho gaya");

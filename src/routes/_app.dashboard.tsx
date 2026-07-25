@@ -12,7 +12,7 @@ export const Route = createFileRoute("/_app/dashboard")({
   component: Dashboard,
 });
 
-const EXAMS: ExamType[] = ["midsem", "put", "internal", "endsem"];
+const EXAMS: ExamType[] = ["midsem", "put"];
 
 function Dashboard() {
   const state = useExamStore((s) => s);
