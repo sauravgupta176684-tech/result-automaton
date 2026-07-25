@@ -85,8 +85,9 @@ export function useAuth(): AuthState {
   return snap;
 }
 
+/** Returns the signed-in user (has `.email`), or null. */
 export function useSession() {
-  return useAuth().session;
+  return useAuth().user;
 }
 
 /** Only the teacher account can edit. Everyone else is strictly read-only. */
