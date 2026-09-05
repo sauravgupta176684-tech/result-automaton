@@ -90,9 +90,7 @@ function AppLayout() {
           <GraduationCap className="size-4 text-primary-foreground" />
         </div>
         <span className="font-display font-bold text-sm">{t("app.title")}</span>
-        <Button asChild variant="ghost" size="sm" className="ml-auto p-0 hover:bg-transparent">
-          <div><LangSwitch /></div>
-        </Button>
+        <LangSwitch className="ml-auto" />
       </div>
 
       <main className="flex-1 min-w-0 md:pt-0 pt-14">
