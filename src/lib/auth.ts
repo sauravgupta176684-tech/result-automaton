@@ -1,97 +1,29 @@
-import { useEffect, useState } from "react";
-import type { Session, User } from "@supabase/supabase-js";
-import { supabase } from "@/integrations/supabase/client";
+/**
+ * Login has been removed — the app is open access and fully editable.
+ * These helpers stay so existing pages keep working without a session.
+ */
 
 export type AppRole = "teacher" | "viewer";
 
-type AuthState = {
-  session: Session | null;
-  user: User | null;
-  role: AppRole | null;
-  loading: boolean;
-};
-
-let state: AuthState = { session: null, user: null, role: null, loading: true };
-const listeners = new Set<() => void>();
-
-function emit() {
-  listeners.forEach((l) => l());
-}
-
-function set(patch: Partial<AuthState>) {
-  state = { ...state, ...patch };
-  emit();
-}
-
-async function resolveRole(session: Session | null) {
-  if (!session) {
-    set({ role: null, loading: false });
-    return;
-  }
-  // Server-side security definer fn: assigns teacher to the very first
-  // account, viewer to everyone else. Cannot be spoofed from the client.
-  const { data, error } = await supabase.rpc("ensure_my_role");
-  set({ role: error ? "viewer" : ((data as AppRole) ?? "viewer"), loading: false });
-}
-
-let initialized = false;
-function init() {
-  if (initialized || typeof window === "undefined") return;
-  initialized = true;
-
-  supabase.auth.onAuthStateChange((_event, session) => {
-    set({ session, user: session?.user ?? null, loading: true });
-    void resolveRole(session);
-  });
-
-  void supabase.auth.getSession().then(({ data }) => {
-    set({ session: data.session, user: data.session?.user ?? null, loading: true });
-    void resolveRole(data.session);
-  });
-}
+const localUser = { email: "teacher@local", id: "local-teacher" };
 
 export const auth = {
-  get: () => state,
-  subscribe(l: () => void) {
-    init();
-    listeners.add(l);
-    return () => listeners.delete(l);
-  },
-  signInWithPassword: (email: string, password: string) =>
-    supabase.auth.signInWithPassword({ email, password }),
-  signUp: (email: string, password: string) =>
-    supabase.auth.signUp({
-      email,
-      password,
-      options: { emailRedirectTo: `${window.location.origin}/dashboard` },
-    }),
-  resetPassword: (email: string) =>
-    supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/reset-password`,
-    }),
+  get: () => ({ session: null, user: localUser, role: "teacher" as AppRole, loading: false }),
   async signOut() {
-    await supabase.auth.signOut();
-    set({ session: null, user: null, role: null, loading: false });
+    /* no-op: login removed */
   },
 };
 
-export function useAuth(): AuthState {
-  const [snap, setSnap] = useState<AuthState>(state);
-  useEffect(() => {
-    const unsub = auth.subscribe(() => setSnap(auth.get()));
-    setSnap(auth.get());
-    return () => { unsub(); };
-  }, []);
-  return snap;
+export function useAuth() {
+  return auth.get();
 }
 
-/** Returns the signed-in user (has `.email`), or null. */
+/** Current user placeholder (has `.email`). */
 export function useSession() {
-  return useAuth().user;
+  return localUser;
 }
 
-/** Only the teacher account can edit. Everyone else is strictly read-only. */
+/** Login removed — everyone has full edit access. */
 export function useIsTeacher(): boolean {
-  const { role } = useAuth();
-  return role === "teacher";
+  return true;
 }
