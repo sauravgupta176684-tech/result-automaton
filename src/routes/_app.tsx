@@ -1,7 +1,7 @@
 import { createFileRoute, Link, Outlet, useRouterState } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { LayoutDashboard, Pencil, FileBarChart, GraduationCap, ClipboardList, Languages } from "lucide-react";
-import { Button } from "@/components/ui/button";
+
 import { useT, useLang, langStore, type TKey } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 
