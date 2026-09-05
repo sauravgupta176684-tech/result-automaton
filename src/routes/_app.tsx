@@ -1,9 +1,8 @@
-import { createFileRoute, Link, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
+import { createFileRoute, Link, Outlet, useRouterState } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { LayoutDashboard, Pencil, FileBarChart, GraduationCap, LogOut, ClipboardList } from "lucide-react";
-import { auth, useAuth, useIsTeacher } from "@/lib/auth";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { LayoutDashboard, Pencil, FileBarChart, GraduationCap, ClipboardList, Languages } from "lucide-react";
+
+import { useT, useLang, langStore, type TKey } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_app")({
@@ -11,28 +10,41 @@ export const Route = createFileRoute("/_app")({
 });
 
 const NAV = [
-  { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard, teacherOnly: false },
-  { to: "/marks", label: "Marks Entry", icon: Pencil, teacherOnly: true },
-  { to: "/results", label: "Results & Toppers", icon: FileBarChart, teacherOnly: false },
-  { to: "/audit", label: "Audit Log", icon: ClipboardList, teacherOnly: true },
+  { to: "/dashboard", key: "nav.dashboard" as TKey, icon: LayoutDashboard },
+  { to: "/marks", key: "nav.marks" as TKey, icon: Pencil },
+  { to: "/results", key: "nav.results" as TKey, icon: FileBarChart },
+  { to: "/audit", key: "nav.audit" as TKey, icon: ClipboardList },
 ] as const;
 
+function LangSwitch({ className }: { className?: string }) {
+  const lang = useLang();
+  return (
+    <div className={cn("inline-flex items-center gap-1 rounded-md border border-border p-0.5", className)}>
+      <Languages className="mx-1 size-3.5 text-muted-foreground" />
+      {(["en", "hi"] as const).map((l) => (
+        <button
+          key={l}
+          type="button"
+          onClick={() => langStore.set(l)}
+          className={cn(
+            "rounded px-2 py-1 text-[11px] font-medium transition-colors",
+            lang === l ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted",
+          )}
+        >
+          {l === "en" ? "English" : "हिन्दी"}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 function AppLayout() {
-  const { user: session, loading } = useAuth();
-  const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const isTeacher = useIsTeacher();
-  const visibleNav = NAV.filter((n) => !n.teacherOnly || isTeacher);
+  const t = useT();
   const [mounted, setMounted] = useState(false);
-
   useEffect(() => { setMounted(true); }, []);
-  useEffect(() => {
-    if (mounted && !loading && !session) navigate({ to: "/auth" });
-  }, [mounted, loading, session, navigate]);
 
-  if (!mounted || loading) return <div className="min-h-screen bg-muted/40" />;
-  if (!session) return null;
-
+  if (!mounted) return <div className="min-h-screen bg-muted/40" />;
 
   return (
     <div className="min-h-screen flex bg-muted/40">
@@ -42,12 +54,12 @@ function AppLayout() {
             <GraduationCap className="size-5 text-primary-foreground" />
           </div>
           <div className="leading-tight">
-            <div className="font-display font-bold text-sm">Smart Exam</div>
-            <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Result System</div>
+            <div className="font-display font-bold text-sm">{t("app.title")}</div>
+            <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{t("app.subtitle")}</div>
           </div>
         </div>
         <nav className="flex-1 p-3 space-y-1">
-          {visibleNav.map((n) => {
+          {NAV.map((n) => {
             const active = pathname === n.to;
             return (
               <Link
@@ -61,29 +73,14 @@ function AppLayout() {
                 )}
               >
                 <n.icon className="size-4" />
-                {n.label}
+                {t(n.key)}
               </Link>
             );
           })}
         </nav>
-        <div className="p-3 border-t border-sidebar-border">
-          <div className="px-3 py-2 mb-2">
-            <div className="text-xs text-muted-foreground flex items-center gap-1.5">
-              Signed in as
-              <Badge variant={isTeacher ? "default" : "secondary"} className="text-[9px] px-1.5 py-0">
-                {isTeacher ? "Teacher" : "Viewer"}
-              </Badge>
-            </div>
-            <div className="text-sm font-medium truncate">{session.email}</div>
-          </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="w-full justify-start gap-2"
-            onClick={() => { auth.signOut(); navigate({ to: "/auth" }); }}
-          >
-            <LogOut className="size-4" /> Sign out
-          </Button>
+        <div className="p-3 border-t border-sidebar-border space-y-2">
+          <div className="px-1 text-[10px] uppercase tracking-wider text-muted-foreground">{t("lang.label")}</div>
+          <LangSwitch className="w-full justify-start" />
         </div>
       </aside>
 
@@ -92,19 +89,17 @@ function AppLayout() {
         <div className="size-8 rounded-lg bg-primary flex items-center justify-center">
           <GraduationCap className="size-4 text-primary-foreground" />
         </div>
-        <span className="font-display font-bold text-sm">Smart Exam</span>
-        <Button variant="ghost" size="sm" className="ml-auto" onClick={() => { auth.signOut(); navigate({ to: "/auth" }); }}>
-          <LogOut className="size-4" />
-        </Button>
+        <span className="font-display font-bold text-sm">{t("app.title")}</span>
+        <LangSwitch className="ml-auto" />
       </div>
 
       <main className="flex-1 min-w-0 md:pt-0 pt-14">
         {/* Mobile bottom nav */}
         <div
           className="md:hidden fixed bottom-0 inset-x-0 z-30 bg-sidebar border-t border-sidebar-border grid"
-          style={{ gridTemplateColumns: `repeat(${visibleNav.length}, minmax(0,1fr))` }}
+          style={{ gridTemplateColumns: `repeat(${NAV.length}, minmax(0,1fr))` }}
         >
-          {visibleNav.map((n) => {
+          {NAV.map((n) => {
             const active = pathname === n.to;
             return (
               <Link key={n.to} to={n.to} className={cn(
@@ -112,7 +107,7 @@ function AppLayout() {
                 active ? "text-primary" : "text-muted-foreground",
               )}>
                 <n.icon className="size-4" />
-                {n.label.split(" ")[0]}
+                {t(n.key).split(" ")[0]}
               </Link>
             );
           })}
