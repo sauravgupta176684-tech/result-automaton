@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { Save, Download, Upload, AlertCircle, Search, Settings2, RotateCcw, Trash2, UserPlus } from "lucide-react";
+import { Save, Download, Upload, AlertCircle, Search, Settings2, RotateCcw, Trash2, UserPlus, Eraser } from "lucide-react";
 import * as XLSX from "xlsx";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -136,6 +136,33 @@ function MarksPage() {
           <Button variant="outline" size="sm" onClick={handleExport}>
             <Download className="size-4 mr-1.5" /> Export
           </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="text-destructive hover:text-destructive"
+            onClick={() => {
+              if (confirm(`Clear marks for all ${state.students.length} students in Mid Sem and PUT? Student details will remain.`)) {
+                examStore.clearAllMarks();
+                toast.success("All exam marks cleared; student list kept");
+              }
+            }}
+          >
+            <Eraser className="size-4 mr-1.5" /> Clear marks
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="text-destructive hover:text-destructive"
+            disabled={state.students.length === 0}
+            onClick={() => {
+              if (confirm(`Remove all ${state.students.length} students and their marks from this saved list? This cannot be undone.`)) {
+                examStore.deleteAllStudents();
+                toast.success("Student list removed");
+              }
+            }}
+          >
+            <Trash2 className="size-4 mr-1.5" /> Remove student list
+          </Button>
         </div>
       </header>
 
@@ -172,8 +199,7 @@ function MarksPage() {
           <table className="w-full text-sm border-collapse">
             <thead className="bg-muted/60 text-xs uppercase tracking-wide text-muted-foreground sticky top-0">
               <tr>
-                <th className="text-left px-3 py-2.5 font-semibold w-12">#</th>
-                <th className="text-left px-3 py-2.5 font-semibold">Roll</th>
+                <th className="text-left px-3 py-2.5 font-semibold w-16">Sr. No.</th>
                 <th className="text-left px-3 py-2.5 font-semibold">Name</th>
                 <th className="text-left px-3 py-2.5 font-semibold">Sec</th>
                 {SUBJECTS.map((s) => (
@@ -190,10 +216,7 @@ function MarksPage() {
             <tbody>
               {filtered.map((r, idx) => (
                 <tr key={r.student.id} className="border-t border-border hover:bg-muted/30 transition-colors">
-                  <td className="px-3 py-1.5 text-muted-foreground tabular-nums">{idx + 1}</td>
-                  <td className="px-2 py-1.5">
-                    <TextCell value={r.student.roll} onCommit={(v) => examStore.updateStudent(r.student.id, { roll: v })} className="font-mono text-xs w-24" />
-                  </td>
+                  <td className="px-3 py-1.5 text-muted-foreground tabular-nums font-medium">{idx + 1}</td>
                   <td className="px-2 py-1.5">
                     <TextCell value={r.student.name} onCommit={(v) => examStore.updateStudent(r.student.id, { name: v })} className="font-medium w-40" />
                   </td>
@@ -237,7 +260,7 @@ function MarksPage() {
                 </tr>
               ))}
               {filtered.length === 0 && (
-                <tr><td colSpan={12} className="text-center py-10 text-muted-foreground">No students match your filters</td></tr>
+                <tr><td colSpan={SUBJECTS.length + 9} className="text-center py-10 text-muted-foreground">No students match your filters</td></tr>
               )}
             </tbody>
           </table>
