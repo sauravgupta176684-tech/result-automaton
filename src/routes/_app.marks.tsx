@@ -21,7 +21,14 @@ import {
 } from "@/lib/exam-store";
 
 export const Route = createFileRoute("/_app/marks")({
-  head: () => ({ meta: [{ title: "Marks Entry — Smart Exam System" }] }),
+  head: () => ({ meta: [
+    { title: "Marks Entry — Smart Exam System" },
+    { name: "description", content: "Enter and update Mid Sem and PUT marks with live result calculations." },
+    { property: "og:title", content: "Marks Entry — Smart Exam System" },
+    { property: "og:description", content: "Enter and update Mid Sem and PUT marks with live result calculations." },
+    { property: "og:type", content: "website" },
+    { name: "twitter:card", content: "summary" },
+  ] }),
   component: MarksPage,
 });
 

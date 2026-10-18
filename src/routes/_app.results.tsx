@@ -18,7 +18,14 @@ import { useExamStore, examStore, computeResults, EXAM_LABELS, SUBJECTS, type Ex
 import { useSession, useIsTeacher } from "@/lib/auth";
 
 export const Route = createFileRoute("/_app/results")({
-  head: () => ({ meta: [{ title: "Results & Toppers — Smart Exam System" }] }),
+  head: () => ({ meta: [
+    { title: "Results & Toppers — Smart Exam System" },
+    { name: "description", content: "View student results, rankings, class toppers, and downloadable result cards." },
+    { property: "og:title", content: "Results & Toppers — Smart Exam System" },
+    { property: "og:description", content: "View student results, rankings, class toppers, and downloadable result cards." },
+    { property: "og:type", content: "website" },
+    { name: "twitter:card", content: "summary" },
+  ] }),
   component: ResultsPage,
 });
 

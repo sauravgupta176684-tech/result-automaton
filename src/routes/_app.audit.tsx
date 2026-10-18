@@ -5,7 +5,14 @@ import { Badge } from "@/components/ui/badge";
 import { useExamStore, EXAM_LABELS } from "@/lib/exam-store";
 
 export const Route = createFileRoute("/_app/audit")({
-  head: () => ({ meta: [{ title: "Audit Log — Smart Exam System" }] }),
+  head: () => ({ meta: [
+    { title: "Audit Log — Smart Exam System" },
+    { name: "description", content: "Review a chronological record of student mark changes." },
+    { property: "og:title", content: "Audit Log — Smart Exam System" },
+    { property: "og:description", content: "Review a chronological record of student mark changes." },
+    { property: "og:type", content: "website" },
+    { name: "twitter:card", content: "summary" },
+  ] }),
   component: AuditPage,
 });
 
