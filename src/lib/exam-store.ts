@@ -262,6 +262,21 @@ export const examStore = {
       return { ...s, marks: nextMarks };
     });
   },
+  clearAllMarks() {
+    setState((s) => ({
+      ...s,
+      marks: { midsem: {}, put: {} },
+      updated: { midsem: {}, put: {} },
+    }));
+  },
+  deleteAllStudents() {
+    setState((s) => ({
+      ...s,
+      students: [],
+      marks: { midsem: {}, put: {} },
+      updated: { midsem: {}, put: {} },
+    }));
+  },
 };
 
 export function useExamStore<T>(selector: (s: State) => T): T {

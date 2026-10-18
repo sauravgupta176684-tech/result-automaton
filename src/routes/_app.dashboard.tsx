@@ -8,7 +8,14 @@ import { useExamStore, computeResults, EXAM_LABELS, SUBJECTS, type ExamType } fr
 import { BarChart, Bar, PieChart, Pie, Cell, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid, Legend } from "recharts";
 
 export const Route = createFileRoute("/_app/dashboard")({
-  head: () => ({ meta: [{ title: "Dashboard — Smart Exam System" }] }),
+  head: () => ({ meta: [
+    { title: "Dashboard — Smart Exam System" },
+    { name: "description", content: "Review Mid Sem and PUT performance, class averages, and student leaders." },
+    { property: "og:title", content: "Dashboard — Smart Exam System" },
+    { property: "og:description", content: "Review Mid Sem and PUT performance, class averages, and student leaders." },
+    { property: "og:type", content: "website" },
+    { name: "twitter:card", content: "summary" },
+  ] }),
   component: Dashboard,
 });
 
