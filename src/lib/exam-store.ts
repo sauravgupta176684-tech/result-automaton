@@ -233,6 +233,32 @@ export const examStore = {
     setState((s) => ({ ...s, students: [...s.students, { ...student, id: crypto.randomUUID() }] }));
     return true;
   },
+  importStudents(records: Omit<Student, "id">[]) {
+    const students = [...state.students];
+    const indexByRoll = new Map(students.map((student, index) => [student.roll, index]));
+    let added = 0;
+    let updated = 0;
+
+    for (const record of records) {
+      const roll = record.roll.trim();
+      const name = record.name.trim();
+      if (!roll || !name) continue;
+
+      const existingIndex = indexByRoll.get(roll);
+      if (existingIndex !== undefined) {
+        const existing = students[existingIndex];
+        if (existing) students[existingIndex] = { ...existing, ...record, roll, name };
+        updated++;
+      } else {
+        indexByRoll.set(roll, students.length);
+        students.push({ ...record, roll, name, id: crypto.randomUUID() });
+        added++;
+      }
+    }
+
+    if (added || updated) setState((s) => ({ ...s, students }));
+    return { added, updated };
+  },
   updateStudent(id: string, patch: Partial<Omit<Student, "id">>) {
     setState((s) => ({
       ...s,

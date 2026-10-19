@@ -16,7 +16,7 @@ import {
 import { toast } from "sonner";
 import { useSession, useIsTeacher } from "@/lib/auth";
 import {
-  useExamStore, examStore, computeResults, EXAM_LABELS, SUBJECTS, SECTIONS,
+  useExamStore, examStore, computeResults, EXAM_LABELS, SUBJECTS, SECTIONS, BRANCHES,
   type ExamType, type Subject,
 } from "@/lib/exam-store";
 
@@ -94,30 +94,94 @@ function MarksPage() {
       try {
         const data = new Uint8Array(e.target?.result as ArrayBuffer);
         const wb = XLSX.read(data, { type: "array" });
-        const ws = wb.Sheets[wb.SheetNames[0]];
-        const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws);
-        let count = 0;
+        const firstSheet = wb.SheetNames[0];
+        const ws = firstSheet ? wb.Sheets[firstSheet] : undefined;
+        if (!ws) {
+          toast.error("Excel file has no worksheet");
+          return;
+        }
+        const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { defval: "" });
+        if (rows.length === 0) {
+          toast.error("No student rows found in this Excel file");
+          return;
+        }
+        const normalizeHeader = (value: string) => value.toLowerCase().replace(/[^a-z0-9]/g, "");
+        const getValue = (row: Record<string, unknown>, ...headers: string[]) => {
+          const wanted = new Set(headers.map(normalizeHeader));
+          const key = Object.keys(row).find((header) => wanted.has(normalizeHeader(header)));
+          return key ? row[key] : "";
+        };
+        const toText = (value: unknown) => String(value ?? "").trim();
+        const studentsToImport: Array<{
+          name: string; roll: string; enrollment: string; semester: number;
+          section: typeof SECTIONS[number]; branch: typeof BRANCHES[number]; course: string;
+        }> = [];
+        let invalidStudents = 0;
+
         rows.forEach((row) => {
-          const roll = String(row["Roll No"] ?? row["roll"] ?? "").trim();
-          const student = state.students.find((s) => s.roll === roll);
+          const name = toText(getValue(row, "Student Name", "Name"));
+          const roll = toText(getValue(row, "Roll Number", "Roll No", "Roll", "Roll Number/ID"));
+          if (!name && !roll) return;
+          if (!name || !roll) {
+            invalidStudents++;
+            return;
+          }
+
+          const rawBranch = toText(getValue(row, "Branch")).toUpperCase();
+          const branch = BRANCHES.find((option) => option.toUpperCase() === rawBranch) ?? BRANCHES[0];
+          const rawSection = toText(getValue(row, "Section")).toUpperCase();
+          const section = SECTIONS.find((option) => option.toUpperCase() === rawSection) ?? SECTIONS[0];
+          const semesterValue = Number(getValue(row, "Semester"));
+          const semester = Number.isFinite(semesterValue) && semesterValue > 0 ? semesterValue : 2;
+          studentsToImport.push({
+            name,
+            roll,
+            enrollment: toText(getValue(row, "Enrollment Number", "Enrollment", "Enrollment No")) || roll,
+            branch,
+            section,
+            semester,
+            course: `B.Tech ${branch}`,
+          });
+        });
+
+        const studentCounts = examStore.importStudents(studentsToImport);
+        let marksCount = 0;
+        rows.forEach((row) => {
+          const roll = toText(getValue(row, "Roll Number", "Roll No", "Roll", "Roll Number/ID"));
+          const student = examStore.get().students.find((s) => s.roll === roll);
           if (!student) return;
           SUBJECTS.forEach((sub) => {
-            const v = row[sub];
+            const v = getValue(row, sub);
             if (v !== undefined && v !== "" && v !== null) {
               const n = Number(v);
               if (!Number.isNaN(n) && n >= 0 && n <= cfg.maxMarks) {
                 examStore.setMark(exam, student.id, sub, n, session?.email ?? "import");
-                count++;
+                marksCount++;
               }
             }
           });
         });
-        toast.success(`Imported ${count} marks`);
+        if (!studentCounts.added && !studentCounts.updated && !marksCount) {
+          toast.error("No valid student records or marks found. Check the Roll Number and Student Name columns.");
+          return;
+        }
+        const parts = [`${studentCounts.added} students added`, `${studentCounts.updated} updated`, `${marksCount} marks imported`];
+        if (invalidStudents) parts.push(`${invalidStudents} incomplete student rows skipped`);
+        toast.success(parts.join(" · "));
       } catch {
         toast.error("Could not parse Excel file");
       }
     };
     reader.readAsArrayBuffer(file);
+  };
+
+  const downloadStudentTemplate = () => {
+    const worksheet = XLSX.utils.json_to_sheet([
+      { "Student Name": "Aarav Sharma", "Roll Number": "B2-101", "Enrollment Number": "0246AL2510101", Branch: "CSE", Section: "B1", Semester: 2 },
+    ]);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Student List");
+    XLSX.writeFile(workbook, "Student_List_Template.xlsx");
   };
 
   return (
@@ -137,9 +201,12 @@ function MarksPage() {
               const f = e.target.files?.[0]; if (f) handleImport(f); e.target.value = "";
             }} />
             <Button variant="outline" size="sm" asChild>
-              <span className="cursor-pointer"><Upload className="size-4 mr-1.5" /> Import</span>
+              <span className="cursor-pointer"><Upload className="size-4 mr-1.5" /> Import Excel</span>
             </Button>
           </label>
+          <Button variant="outline" size="sm" onClick={downloadStudentTemplate}>
+            <Download className="size-4 mr-1.5" /> Student Template
+          </Button>
           <Button variant="outline" size="sm" onClick={handleExport}>
             <Download className="size-4 mr-1.5" /> Export
           </Button>
