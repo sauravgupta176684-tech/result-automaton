@@ -16,7 +16,7 @@ import {
 import { toast } from "sonner";
 import { useSession, useIsTeacher } from "@/lib/auth";
 import {
-  useExamStore, examStore, computeResults, EXAM_LABELS, SUBJECTS, SECTIONS,
+  useExamStore, examStore, computeResults, EXAM_LABELS, SUBJECTS, SECTIONS, BRANCHES,
   type ExamType, type Subject,
 } from "@/lib/exam-store";
 
