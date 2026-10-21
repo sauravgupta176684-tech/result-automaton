@@ -165,7 +165,7 @@ function migrate(raw: State): State {
   // Only remap when saved data still uses the old subject codes.
   const usesOldCodes = EXAM_TYPES.some((e) =>
     Object.values(raw.marks?.[e] ?? {}).some((m) =>
-      Object.keys(m ?? {}).some((k) => k in SUBJECT_REMAP && !(SUBJECTS as readonly string[]).includes(k) === false && k === "BT101" || k === "BT202" || k === "BT104" || k === "BT105"),
+      Object.keys(m ?? []).some((k) => k === "BT101" || k === "BT202" || k === "BT104" || k === "BT105"),
     ),
   );
   if (usesOldCodes) {
