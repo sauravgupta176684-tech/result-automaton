@@ -162,6 +162,25 @@ function migrate(raw: State): State {
     ...s,
     branch: s.branch ?? BRANCHES[i % BRANCHES.length],
   }));
+  // Only remap when saved data still uses the old subject codes.
+  const usesOldCodes = EXAM_TYPES.some((e) =>
+    Object.values(raw.marks?.[e] ?? {}).some((m) =>
+      Object.keys(m ?? {}).some((k) => k in SUBJECT_REMAP && !(SUBJECTS as readonly string[]).includes(k) === false && k === "BT101" || k === "BT202" || k === "BT104" || k === "BT105"),
+    ),
+  );
+  if (usesOldCodes) {
+    EXAM_TYPES.forEach((e) => {
+      const map = raw.marks[e] ?? {};
+      Object.keys(map).forEach((sid) => {
+        const row = map[sid] ?? {};
+        const remapped: Partial<Record<Subject, number>> = {};
+        Object.entries(row).forEach(([code, value]) => {
+          remapped[SUBJECT_REMAP[code] ?? (code as Subject)] = value;
+        });
+        map[sid] = remapped;
+      });
+    });
+  }
   return raw;
 }
 
