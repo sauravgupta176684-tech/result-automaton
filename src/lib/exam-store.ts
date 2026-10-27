@@ -11,25 +11,25 @@ export const EXAM_FULL: Record<ExamType, string> = {
   put: "Pre University Test (PUT)",
 };
 
-export const SUBJECTS = ["BT102", "BT203", "BT204", "BT205", "BT103"] as const;
+export const SUBJECTS = ["BT101", "BT202", "BT103", "BT104", "BT105"] as const;
 export type Subject = (typeof SUBJECTS)[number];
 
 export const SUBJECT_NAMES: Record<Subject, string> = {
-  BT102: "Engineering Mathematics",
-  BT203: "Engineering Physics",
-  BT204: "Basic Electrical Engg.",
-  BT205: "Programming in C",
-  BT103: "Engineering Graphics",
+  BT101: "Engineering Mathematics",
+  BT202: "Engineering Physics",
+  BT103: "Basic Electrical Engg.",
+  BT104: "Programming in C",
+  BT105: "Engineering Graphics",
 };
 
-// Maps subject codes saved before the list was replaced to their new codes,
+// Maps subject codes saved before the institute-format switch to their new codes,
 // so already-entered marks stay with the same table column.
 const SUBJECT_REMAP: Record<string, Subject> = {
-  BT101: "BT102",
-  BT202: "BT203",
-  BT103: "BT204",
-  BT104: "BT205",
-  BT105: "BT103",
+  BT102: "BT101",
+  BT203: "BT202",
+  BT204: "BT103",
+  BT205: "BT104",
+  BT103: "BT105",
 };
 
 export const SECTIONS = ["B1", "B2", "B3", "B4", "B5"] as const;
