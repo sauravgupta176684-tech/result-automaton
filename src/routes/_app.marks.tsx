@@ -1,7 +1,11 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { Save, Download, Upload, AlertCircle, Search, Settings2, RotateCcw, Trash2, UserPlus, Eraser } from "lucide-react";
+import { Save, Download, Upload, FileText, AlertCircle, Search, Settings2, RotateCcw, Trash2, UserPlus, Eraser } from "lucide-react";
 import * as XLSX from "xlsx";
+import workerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
+import {
+  buildStudentIndex, lookupStudent, parseInstituteSheet, parsePdfResultLines, type InstituteRow,
+} from "@/lib/institute-import";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -88,6 +92,51 @@ function MarksPage() {
     toast.success("Excel exported");
   };
 
+  const applyInstituteRows = (data: InstituteRow[], source: string) => {
+    if (data.length === 0) {
+      toast.error(`No student rows found in this ${source} file. Expected columns: Sr. No. / Roll No. / Name plus subject codes.`);
+      return;
+    }
+    const index = buildStudentIndex(examStore.get().students);
+    const studentsToImport = data.map((row) => {
+      const existing = lookupStudent(index, row.roll, row.enrollment);
+      const roll = existing ? existing.roll : row.roll;
+      return {
+        name: row.name,
+        roll,
+        enrollment: row.enrollment || existing?.enrollment || roll,
+        semester: existing?.semester ?? 2,
+        section: existing?.section ?? "B2",
+        branch: existing?.branch ?? "CSE",
+        course: existing?.course ?? "B.Tech CSE",
+      };
+    });
+    const counts = examStore.importStudents(studentsToImport);
+    let marksCount = 0;
+    let unmatched = 0;
+    const freshIndex = buildStudentIndex(examStore.get().students);
+    data.forEach((row) => {
+      const student = lookupStudent(freshIndex, row.roll, row.enrollment);
+      if (!student) {
+        unmatched++;
+        return;
+      }
+      (Object.entries(row.marks) as Array<[Subject, number]>).forEach(([sub, value]) => {
+        if (Number.isFinite(value) && value >= 0 && value <= cfg.maxMarks) {
+          examStore.setMark(exam, student.id, sub, value, session?.email ?? "import");
+          marksCount++;
+        }
+      });
+    });
+    if (!counts.added && !counts.updated && !marksCount) {
+      toast.error("Nothing new to import — every row already matches a saved student with no new marks.");
+      return;
+    }
+    const parts = [`${counts.added} students added`, `${counts.updated} updated`, `${marksCount} marks imported`];
+    if (unmatched) parts.push(`${unmatched} rows unmatched`);
+    toast.success(`${source} import: ${parts.join(" · ")}`);
+  };
+
   const handleImport = (file: File) => {
     const reader = new FileReader();
     reader.onload = (e) => {
@@ -100,79 +149,41 @@ function MarksPage() {
           toast.error("Excel file has no worksheet");
           return;
         }
-        const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { defval: "" });
-        if (rows.length === 0) {
-          toast.error("No student rows found in this Excel file");
-          return;
-        }
-        const normalizeHeader = (value: string) => value.toLowerCase().replace(/[^a-z0-9]/g, "");
-        const getValue = (row: Record<string, unknown>, ...headers: string[]) => {
-          const wanted = new Set(headers.map(normalizeHeader));
-          const key = Object.keys(row).find((header) => wanted.has(normalizeHeader(header)));
-          return key ? row[key] : "";
-        };
-        const toText = (value: unknown) => String(value ?? "").trim();
-        const studentsToImport: Array<{
-          name: string; roll: string; enrollment: string; semester: number;
-          section: typeof SECTIONS[number]; branch: typeof BRANCHES[number]; course: string;
-        }> = [];
-        let invalidStudents = 0;
-
-        rows.forEach((row) => {
-          const name = toText(getValue(row, "Student Name", "Name"));
-          const roll = toText(getValue(row, "Roll Number", "Roll No", "Roll", "Roll Number/ID"));
-          if (!name && !roll) return;
-          if (!name || !roll) {
-            invalidStudents++;
-            return;
-          }
-
-          const rawBranch = toText(getValue(row, "Branch")).toUpperCase();
-          const branch = BRANCHES.find((option) => option.toUpperCase() === rawBranch) ?? BRANCHES[0];
-          const rawSection = toText(getValue(row, "Section")).toUpperCase();
-          const section = SECTIONS.find((option) => option.toUpperCase() === rawSection) ?? SECTIONS[0];
-          const semesterValue = Number(getValue(row, "Semester"));
-          const semester = Number.isFinite(semesterValue) && semesterValue > 0 ? semesterValue : 2;
-          studentsToImport.push({
-            name,
-            roll,
-            enrollment: toText(getValue(row, "Enrollment Number", "Enrollment", "Enrollment No")) || roll,
-            branch,
-            section,
-            semester,
-            course: `B.Tech ${branch}`,
-          });
-        });
-
-        const studentCounts = examStore.importStudents(studentsToImport);
-        let marksCount = 0;
-        rows.forEach((row) => {
-          const roll = toText(getValue(row, "Roll Number", "Roll No", "Roll", "Roll Number/ID"));
-          const student = examStore.get().students.find((s) => s.roll === roll);
-          if (!student) return;
-          SUBJECTS.forEach((sub) => {
-            const v = getValue(row, sub);
-            if (v !== undefined && v !== "" && v !== null) {
-              const n = Number(v);
-              if (!Number.isNaN(n) && n >= 0 && n <= cfg.maxMarks) {
-                examStore.setMark(exam, student.id, sub, n, session?.email ?? "import");
-                marksCount++;
-              }
-            }
-          });
-        });
-        if (!studentCounts.added && !studentCounts.updated && !marksCount) {
-          toast.error("No valid student records or marks found. Check the Roll Number and Student Name columns.");
-          return;
-        }
-        const parts = [`${studentCounts.added} students added`, `${studentCounts.updated} updated`, `${marksCount} marks imported`];
-        if (invalidStudents) parts.push(`${invalidStudents} incomplete student rows skipped`);
-        toast.success(parts.join(" · "));
+        const grid = XLSX.utils.sheet_to_json<unknown[]>(ws, { header: 1, defval: "" });
+        applyInstituteRows(parseInstituteSheet(grid), "Excel");
       } catch {
         toast.error("Could not parse Excel file");
       }
     };
     reader.readAsArrayBuffer(file);
+  };
+
+  const handlePdfImport = async (file: File) => {
+    try {
+      const pdfjs = await import("pdfjs-dist");
+      pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
+      const doc = await pdfjs.getDocument({ data: await file.arrayBuffer() }).promise;
+      const lines: string[] = [];
+      for (let p = 1; p <= doc.numPages; p++) {
+        const page = await doc.getPage(p);
+        const content = await page.getTextContent();
+        const rowMap = new Map<number, { x: number; str: string }[]>();
+        for (const item of content.items as Array<{ str: string; transform: number[] }>) {
+          if (!item.str.trim()) continue;
+          const y = Math.round(item.transform[5] / 2);
+          const arr = rowMap.get(y) ?? [];
+          arr.push({ x: item.transform[4], str: item.str });
+          rowMap.set(y, arr);
+        }
+        for (const [, arr] of [...rowMap.entries()].sort((a, b) => b[0] - a[0])) {
+          arr.sort((a, b) => a.x - b.x);
+          lines.push(arr.map((item) => item.str).join(" "));
+        }
+      }
+      applyInstituteRows(parsePdfResultLines(lines), "PDF");
+    } catch {
+      toast.error("Could not parse PDF file");
+    }
   };
 
   const downloadStudentTemplate = () => {
@@ -202,6 +213,14 @@ function MarksPage() {
             }} />
             <Button variant="outline" size="sm" asChild>
               <span className="cursor-pointer"><Upload className="size-4 mr-1.5" /> Import Excel</span>
+            </Button>
+          </label>
+          <label>
+            <input type="file" accept=".pdf" className="hidden" onChange={(e) => {
+              const f = e.target.files?.[0]; if (f) void handlePdfImport(f); e.target.value = "";
+            }} />
+            <Button variant="outline" size="sm" asChild>
+              <span className="cursor-pointer"><FileText className="size-4 mr-1.5" /> Import PDF</span>
             </Button>
           </label>
           <Button variant="outline" size="sm" onClick={downloadStudentTemplate}>
