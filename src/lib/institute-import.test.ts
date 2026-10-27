@@ -19,8 +19,8 @@ test("pdf result lines parse into students, absent subjects get no mark", () => 
   assert.equal(first.name, "Saurav Gupta");
   assert.deepEqual(first.marks, { BT101: 20, BT202: 16, BT103: 17, BT104: 20, BT105: 14 });
   const absent = rows[1]!.marks;
-  assert.equal(absent.BT205, undefined);
-  assert.equal(absent.BT104, 15);
+  assert.equal(absent.BT104, undefined);
+  assert.equal(absent.BT103, 15);
   assert.deepEqual(rows[2]!.marks, {});
 });
 

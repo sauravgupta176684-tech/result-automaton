@@ -1,6 +1,19 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { examStore, EXAM_TYPES, SUBJECTS } from "./exam-store";
+import { examStore, EXAM_TYPES, SUBJECTS, migrate } from "./exam-store";
+
+test("saved marks in previous subject codes move to the new institute codes", () => {
+  const raw = {
+    students: [{ id: "s1", name: "Test Student", roll: "B2-001", enrollment: "ENR-1", semester: 2, section: "B2", branch: "CSE", course: "B.Tech CSE" }],
+    marks: { midsem: { s1: { BT102: 11, BT203: 22, BT204: 33, BT205: 44, BT103: 55 } }, put: {} },
+    updated: { midsem: {}, put: {} },
+    config: { midsem: { maxMarks: 20, passPct: 35 }, put: { maxMarks: 70, passPct: 33 } },
+    audit: [],
+  } as unknown as Parameters<typeof migrate>[0];
+
+  const out = migrate(raw);
+  assert.deepEqual(out.marks.midsem.s1, { BT101: 11, BT202: 22, BT103: 33, BT104: 44, BT105: 55 });
+});
 
 test("clearing all marks keeps students and removes scores from both exams", () => {
   examStore.reseed();
