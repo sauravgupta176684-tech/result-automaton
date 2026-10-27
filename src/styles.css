@@ -137,10 +137,20 @@
   h1, h2, h3, h4 { font-family: var(--font-display); letter-spacing: -0.01em; }
 }
 //new 
+/* Lovable Floating Badge & Tagger Hide */
+[class*="lovable"],
+[id*="lovable"],
 a[href*="lovable.dev"],
-#lovable-badge,
-div[class*="lovable"] {
+iframe[src*="lovable"],
+div:has(> a[href*="lovable.dev"]) {
     display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
     pointer-events: none !important;
+    width: 0 !important;
+    height: 0 !important;
+    position: absolute !important;
+    z-index: -9999 !important;
 }
+
 
