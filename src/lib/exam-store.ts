@@ -156,16 +156,16 @@ const initialState: State = seed();
 let state: State = initialState;
 const listeners = new Set<() => void>();
 
-function migrate(raw: State): State {
+export function migrate(raw: State): State {
   if (!raw.updated) raw.updated = { midsem: {}, put: {} };
   raw.students = raw.students.map((s, i) => ({
     ...s,
     branch: s.branch ?? BRANCHES[i % BRANCHES.length],
   }));
-  // Only remap when saved data still uses the old subject codes.
+  // Only remap when saved data still uses the previous subject codes.
   const usesOldCodes = EXAM_TYPES.some((e) =>
     Object.values(raw.marks?.[e] ?? {}).some((m) =>
-      Object.keys(m ?? {}).some((k) => k === "BT101" || k === "BT202" || k === "BT104" || k === "BT105"),
+      Object.keys(m ?? {}).some((k) => k === "BT102" || k === "BT203" || k === "BT204" || k === "BT205"),
     ),
   );
   if (usesOldCodes) {
