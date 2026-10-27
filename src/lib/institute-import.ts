@@ -28,8 +28,8 @@ export interface StudentIdLike {
   enrollment: string;
 }
 
-export function buildStudentIndex(students: StudentIdLike[]): Map<string, StudentIdLike> {
-  const index = new Map<string, StudentIdLike>();
+export function buildStudentIndex<T extends StudentIdLike>(students: T[]): Map<string, T> {
+  const index = new Map<string, T>();
   for (const student of students) {
     for (const key of [...idVariants(student.roll), ...idVariants(student.enrollment)]) {
       if (!index.has(key)) index.set(key, student);
@@ -38,11 +38,11 @@ export function buildStudentIndex(students: StudentIdLike[]): Map<string, Studen
   return index;
 }
 
-export function lookupStudent(
-  index: Map<string, StudentIdLike>,
+export function lookupStudent<T extends StudentIdLike>(
+  index: Map<string, T>,
   roll: string,
   enrollment: string,
-): StudentIdLike | undefined {
+): T | undefined {
   for (const key of [...idVariants(roll), ...idVariants(enrollment)]) {
     const hit = index.get(key);
     if (hit) return hit;
@@ -78,7 +78,7 @@ export function parseInstituteSheet(rows: unknown[][]): InstituteRow[] {
       if ((SUBJECTS as readonly string[]).includes(code)) subjectCols.push({ col, code });
     }
   });
-  if (nameCol === -1 || rollCol === -1 || subjectCols.length === 0) return [];
+  if (nameCol === -1 || rollCol === -1) return [];
 
   const parsed: InstituteRow[] = [];
   for (const row of rows.slice(headerIdx + 1)) {
